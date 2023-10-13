@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 from color_extraction import find_object
 import rospy
@@ -39,15 +39,15 @@ def callback(rgb_img, depth_img):
     '''
 
     bridge = CvBridge()
-    rgb_img = bridge.imgmsg_to_cv2(rgb_img, desired_encoding="passthrough")
+    rgb_img = bridge.imgmsg_to_cv2(rgb_img, desired_encoding="bgr8")
     depth_img = bridge.imgmsg_to_cv2(depth_img, desired_encoding="passthrough")
 
-    obj = find_object(rgb_img, publish=pub_found_blocs)
+    obj = find_object(rgb_img, publish=True)
     
     if obj is not None:
 
         x, y = obj
-        d = depth_img[x, y]
+        d = depth_img[y, x]
 
         pub = rospy.Publisher(obj_coords_topic, Pose, queue_size=1)
 
@@ -67,8 +67,8 @@ def listener():
     Subscribes to the /cap120/camera topic and calls the callback function.
     '''
 
-    rgb_sub = rospy.Subscriber(rgb_topic, Image)
-    depth_sub = rospy.Subscriber(depth_topic, Image)
+    rgb_sub = message_filters.Subscriber(rgb_topic, Image)
+    depth_sub = message_filters.Subscriber(depth_topic, Image)
 
     RGBD_frame = message_filters.ApproximateTimeSynchronizer([rgb_sub, depth_sub], 5, 0.1)
     RGBD_frame.registerCallback(callback)
@@ -79,6 +79,6 @@ def listener():
 
 if __name__ == '__main__':
 
-    rospy.init_node('/cap120/find_bloc_node', anonymous=False)
+    rospy.init_node('find_bloc_node', anonymous=False)
 
     listener()

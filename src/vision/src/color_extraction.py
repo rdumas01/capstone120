@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import cv2
 import numpy as np
@@ -90,13 +90,13 @@ def find_object(image, display=False, publish=False, print_res=False, find_all=F
                 cv2.rectangle(result, (x1, y1), (x2, y2), colour, thickness)
 
 
-            if not find_all:
+            if not find_all and not publish:
                 return xc, yc
 
     if publish:
-        pub = rospy.Publisher(drawn_rect_topic, Image)
+        pub = rospy.Publisher(drawn_rect_topic, Image, queue_size=5)
         bridge = CvBridge()
-        res_frame = bridge.cv2_to_imgmsg(result, encoding="passthrough")
+        res_frame = bridge.cv2_to_imgmsg(result, encoding="bgr8")
         pub.publish(res_frame)
 
     if display: # Displays the frame with rectangles on it
@@ -124,11 +124,11 @@ def color_def():
     
     blue = {'name' : 'blue', \
             'bgr' : (255, 0, 0), \
-            'hsv' : [np.array([90, 50, 70]), np.array([128, 255, 255])]}
+            'hsv' : [np.array([90, 70, 100]), np.array([128, 255, 255])]}
     
     green = {'name' : 'green', \
              'bgr' : (0, 255, 0), \
-             'hsv' : [np.array([36, 25, 25]), np.array([90, 255, 255])]}
+             'hsv' : [np.array([36, 60, 100]), np.array([90, 255, 255])]}
     
     white = {'name' : 'white', \
              'bgr' : (255, 255, 255), \
