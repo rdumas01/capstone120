@@ -24,8 +24,9 @@ def find_object(image, display=False, publish=False, print_res=False, find_all=F
         None if find_all is True
     '''
 
-    # Publishing topic
-    drawn_rect_topic = "/cap120/found_blocs"
+    # Fixed variables
+    drawn_rect_topic = "/cap120/found_blocs"    # Publishing topic
+    area_ratio = 0.5                            # Defines which contours to keep based on contour area
 
     ## Color Definitions
     colors = color_def()
@@ -33,6 +34,7 @@ def find_object(image, display=False, publish=False, print_res=False, find_all=F
     # Reading the image
     if isinstance(image, str):
         img = cv2.imread(image) # if opening from path
+        print('Received an image path')
     else:
         img = image
 
@@ -54,8 +56,21 @@ def find_object(image, display=False, publish=False, print_res=False, find_all=F
         lower_bound = color['hsv'][0]    
         upper_bound = color['hsv'][1]
 
+        if color['name'] == 'red': # Red has 2 ranges (on both ends of hue spectrum)
+            lower_bound = color['hsv'][0][0]    
+            upper_bound = color['hsv'][0][1]
+
         # Find the colors within the boundaries
         mask = cv2.inRange(hsv, lower_bound, upper_bound)
+
+        if color['name'] == 'red': # Taking the union of red's 2 ranges
+            lower_bound2 = color['hsv'][1][0]    
+            upper_bound2 = color['hsv'][1][1]
+            mask2 = cv2.inRange(hsv, lower_bound2, upper_bound2)
+            mask = cv2.bitwise_or(mask, mask2)
+            # cv2.imshow("OR MASK", mask)
+            # cv2.waitKey(0)
+            # cv2.destroyAllWindows()
 
         # Remove unnecessary noise from mask
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
@@ -63,35 +78,38 @@ def find_object(image, display=False, publish=False, print_res=False, find_all=F
 
         # Find contours from the mask
         contours, _ = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
+        contours = sorted(contours, key = lambda x: cv2.contourArea(x), reverse=True) # Order by decreasing area
 
         if display or publish:
             colour = color['bgr'] # Frame color
             thickness = 2 # Frame thickness
 
+        min_area = area_ratio * cv2.contourArea(contours[0])
 
         for cntr in contours:
 
-            xc, yc, w, h = cv2.boundingRect(cntr)
-            xc = xc + w//2
-            yc = yc + h//2
+            if cv2.contourArea(cntr) >= min_area:
 
-            if print_res:
-                print('Found {} object at ({}, {})'.format(color['name'], xc, yc))
+                xc, yc, w, h = cv2.boundingRect(cntr)
+                xc = xc + w//2
+                yc = yc + h//2
 
-
-            if display or publish:
-                x1 = xc - w//2
-                x2 = xc + w//2
-                y1 = yc - h//2
-                y2 = yc + h//2
-            
-                # Traces a rectangle around each "object":
-                cv2.rectangle(result, (x1, y1), (x2, y2), colour, thickness)
+                if print_res:
+                    print('Found {} object at ({}, {})'.format(color['name'], xc, yc))
 
 
-            if not find_all and not publish:
-                return xc, yc
+                if display or publish:
+                    x1 = xc - w//2
+                    x2 = xc + w//2
+                    y1 = yc - h//2
+                    y2 = yc + h//2
+                
+                    # Traces a rectangle around each "object":
+                    cv2.rectangle(result, (x1, y1), (x2, y2), colour, thickness)
+
+
+                if not find_all and not publish:
+                    return xc, yc
 
     if publish:
         pub = rospy.Publisher(drawn_rect_topic, Image, queue_size=5)
@@ -134,15 +152,13 @@ def color_def():
              'bgr' : (255, 255, 255), \
              'hsv' : [np.array([0, 0, 200]), np.array([255, 20, 255])]}
     
-    red1 = {'name' : 'red', \
+    red = {'name' : 'red', \
             'bgr' : (0, 0, 255), \
-            'hsv' : [np.array([0, 150, 50]), np.array([10, 255, 255])]}
-    
-    red2 = {'name' : 'red', \
-            'bgr' : (0, 0, 255), \
-            'hsv' : [np.array([170, 150, 50]), np.array([180, 255, 255])]}
+            'hsv' : [[np.array([180, 150, 100]), np.array([255, 255, 255])], \
+                     [np.array([0, 150, 100]), np.array([10, 255, 255])]]}
+                    # Red has 2 ranges on both ends of HSV spectrum
 
-    colors = [yellow, blue, green, red1, red2]
+    colors = [yellow, blue, green, red]
 
     return colors
 
