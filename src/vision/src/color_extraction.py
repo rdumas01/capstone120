@@ -8,7 +8,7 @@ from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 
 
-def find_object(image, display=False, publish=False, print_res=False, find_all=False):
+def find_object(image, display=False, publish=False, print_res=False):
     '''
     Scans an image to find colored object and returns their coordinates.
 
@@ -17,11 +17,10 @@ def find_object(image, display=False, publish=False, print_res=False, find_all=F
         display: True to draw squares around
         publish: True to publish result image to a topic
         print_res: True to print coordinates of each bloc found in terminal
-        find_all: if False, only returns the first object found
 
     Returns:
-        (xc, yc): coordinates of first object found if find_all is False
-        None if find_all is True
+        found_objects: dictionary where each key is a color, and the value is a list of dictionaries for each object found
+            e.g. found_object['red'] = [list of dictionaries corresponding to red objects]
     '''
 
     # Fixed variables
@@ -49,8 +48,11 @@ def find_object(image, display=False, publish=False, print_res=False, find_all=F
         # Copy the image to not alter it when tracing the bounding boxes
         result = img.copy()
 
+    found_objects = dict()
 
     for color in colors:
+
+        found_objects[color['name']] = dict()
 
         # Lower bound and upper bound for color 
         lower_bound = color['hsv'][0]    
@@ -86,6 +88,8 @@ def find_object(image, display=False, publish=False, print_res=False, find_all=F
 
         min_area = area_ratio * cv2.contourArea(contours[0])
 
+
+
         for cntr in contours:
 
             if cv2.contourArea(cntr) >= min_area:
@@ -93,6 +97,8 @@ def find_object(image, display=False, publish=False, print_res=False, find_all=F
                 xc, yc, w, h = cv2.boundingRect(cntr)
                 xc = xc + w//2
                 yc = yc + h//2
+
+                found_objects[color['name']]['center'] = (xc,yc)
 
                 if print_res:
                     print('Found {} object at ({}, {})'.format(color['name'], xc, yc))
@@ -106,10 +112,12 @@ def find_object(image, display=False, publish=False, print_res=False, find_all=F
                 
                     # Traces a rectangle around each "object":
                     cv2.rectangle(result, (x1, y1), (x2, y2), colour, thickness)
-
-
-                if not find_all and not publish:
-                    return xc, yc
+                
+                # Draw mask to get list of pixels
+                cntr_mask = np.zeros(hsv.shape[:2])
+                cv2.drawContours(cntr_mask, [cntr], 0, 255, thickness=-1)
+                pts_in_cntr = np.nonzero(cntr_mask)
+                found_objects[color['name']]['pixels'] = pts_in_cntr
 
     if publish:
         pub = rospy.Publisher(drawn_rect_topic, Image, queue_size=5)
@@ -121,6 +129,8 @@ def find_object(image, display=False, publish=False, print_res=False, find_all=F
         cv2.imshow("Result", result)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
+    
+    return found_objects
 
 
 
@@ -169,4 +179,4 @@ def color_def():
 
 if __name__ == '__main__':
 
-    find_object('test_bricks.jpg', display=True, print_res=True, find_all=True)
+    find_object('test_bricks.jpg', display=True, print_res=True)

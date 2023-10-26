@@ -7,78 +7,99 @@ import numpy as np
 
 import message_filters
 
-from sensor_msgs.msg import Image         #TODO
-from geometry_msgs.msg import Pose        #TODO
-
-# Should the resulting image with found blocs be published? (False to increase speed)
-pub_found_blocs = True
-
-# Relevant topics
-obj_coords_topic = "/cap120/bloc_coords"
-rgb_topic = "/camera/color/image_raw"
-depth_topic = "/camera/aligned_depth_to_color/image_raw"
-
-# Camera settings
-CAM_WIDTH = 1280        #TODO
-CAM_HEIGHT = 720        #TODO
-
-# Intel RealSense D435 RGB FOV: 87 degrees x 58 degrees
-rgb_horizontal_FOV = np.pi/180 * 87      #TODO
-rgb_vertical_FOV = np.pi/180 * 58        #TODO
+from sensor_msgs.msg import Image, CameraInfo         #TODO
+from geometry_msgs.msg import Pose                    #TODO
 
 
 
-def callback(rgb_img, depth_img):
-    '''
-    Called every time a camera frame is published on the /cap120/camera topic.
-    Publishes the (x, y) coordinates of the first object found in the frame to the /cap120/bloc_coords topic.
+class find_bloc_node:
 
-    Args:
-        rgb_img: rgb frame (ROS Image) from the RealSense
-        depth_img: depth frame (ROS Image) from the RealSense, aligned to the rgb frame
-    '''
+    def __init__(self):
+        '''
+        Main function of the /cap120/find_bloc node, which performs the object detection on the camera frames.
+        Subscribes to the /cap120/camera topic and calls the callback function.
+        '''
+        rospy.init_node('find_bloc_node', anonymous=False)
 
-    bridge = CvBridge()
-    rgb_img = bridge.imgmsg_to_cv2(rgb_img, desired_encoding="bgr8")
-    depth_img = bridge.imgmsg_to_cv2(depth_img, desired_encoding="passthrough")
+        # Should the resulting image with found blocs be published? (False to increase speed)
+        self.pub_found_blocs = True
 
-    obj = find_object(rgb_img, publish=True)
-    
-    if obj is not None:
+        # Relevant topics
+        self.obj_coords_topic = "/cap120/bloc_coords"
+        self.rgb_topic = "/camera/color/image_raw"
+        self.depth_topic = "/camera/aligned_depth_to_color/image_raw"
 
-        x, y = obj
-        d = depth_img[y, x]
+        self.bridge = CvBridge()
 
-        pub = rospy.Publisher(obj_coords_topic, Pose, queue_size=1)
+        # Camera info
+        self.fx = 1      # Focal length x
+        self.fy = 1      # Focal length y
+        self.cx = 0      # Image center x
+        self.cy = 0      # Image center y
 
-        obj_coords = Pose()
+        self.camera_info_sub = rospy.Subscriber("/camera/color/camera_info", CameraInfo, self.camera_info_callback)
 
-        obj_coords.position.x = x       #TODO
-        obj_coords.position.y = y       #TODO
-        obj_coords.position.z = d       #TODO
+        self.rgb_sub = message_filters.Subscriber(self.rgb_topic, Image)
+        self.depth_sub = message_filters.Subscriber(self.depth_topic, Image)
 
-        pub.publish(obj_coords)
+        self.RGBD_frame = message_filters.ApproximateTimeSynchronizer([self.rgb_sub, self.depth_sub], 5, 0.1)
+        self.RGBD_frame.registerCallback(self.RGBD_callback)
+        
+        rospy.spin()
 
 
 
-def listener():
-    '''
-    Main function of the /cap120/find_bloc node, which performs the object detection on the camera frames.
-    Subscribes to the /cap120/camera topic and calls the callback function.
-    '''
+    def camera_info_callback(self, msg):
+        '''
+        Gets the intrinsic parameters from the CameraInfo message
+        '''
+        self.fx = msg.K[0]
+        self.fy = msg.K[4]
+        self.cs = msg.K[2]
+        self.cy = msg.K[5]
 
-    rgb_sub = message_filters.Subscriber(rgb_topic, Image)
-    depth_sub = message_filters.Subscriber(depth_topic, Image)
 
-    RGBD_frame = message_filters.ApproximateTimeSynchronizer([rgb_sub, depth_sub], 5, 0.1)
-    RGBD_frame.registerCallback(callback)
-    
-    rospy.spin()
+
+    def RGBD_callback(self, rgb_img, depth_img):
+        '''
+        Called every time a camera frame is published on the /cap120/camera topic.
+        Publishes the (x, y) coordinates of the first object found in the frame to the /cap120/bloc_coords topic.
+
+        Args:
+            rgb_img: rgb frame (ROS Image) from the RealSense
+            depth_img: depth frame (ROS Image) from the RealSense, aligned to the rgb frame
+        '''
+        
+        try:
+            rgb_img = self.bridge.imgmsg_to_cv2(rgb_img, desired_encoding="bgr8")
+            depth_img = self.bridge.imgmsg_to_cv2(depth_img, desired_encoding="16UC1")
+
+            objects = find_object(rgb_img, publish=True)
+            
+            if len(objects.keys()) > 0:
+
+                obj = objects[[key for key in objects.keys()][0]]
+                ox, oy = obj['center']
+                depth = np.mean(np.array([depth_img[x, y] for (x, y) in zip(obj['pixels'][0], obj['pixels'][1])]))
+
+                pub = rospy.Publisher(self.obj_coords_topic, Pose, queue_size=1)
+
+                obj_coords = Pose()
+
+                obj_coords.position.x = (ox - self.cx) * depth / self.fx       #TODO verify
+                obj_coords.position.y = (oy - self.cy) * depth / self.fy       #TODO verify
+                obj_coords.position.z = depth
+
+                pub.publish(obj_coords)
+
+        except Exception as e:
+            print("Error:", e)
+
+
+
 
 
 
 if __name__ == '__main__':
 
-    rospy.init_node('find_bloc_node', anonymous=False)
-
-    listener()
+    find_bloc_node()
