@@ -16,7 +16,8 @@ def gen_trajectory(target_pose):
     # Get initial position of end effector
     while not rospy.is_shutdown():
         try:
-            end_effector_pose = tfBuffer.lookup_transform('sgr532/base_link', 'sgr532/link_grasping_frame', rospy.Time())
+            end_effector_pose = tfBuffer.lookup_transform('world', 'sgr532/link_grasping_frame', rospy.Time())
+            # print(end_effector_pose)
             break
         except:
             pass
@@ -54,7 +55,7 @@ def bezier_curve(p0, p1, p2, p3, t):
 
 
 
-def generate_bezier_waypoints(x1, y1, z1, x2, y2, z2, offset=0.5, num_points=10):
+def generate_bezier_waypoints(x1, y1, z1, x2, y2, z2, offset=0.1, num_points=10):
     start = np.array([x1, y1, z1])
     end = np.array([x2, y2, z2])
 
