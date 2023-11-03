@@ -80,7 +80,7 @@ class move_arm_node:
 
     def base_position(self):
 
-        self.arm.set_pose_target([0.250, 0, 0.175, 0, 1.57, 0])
+        self.arm.set_pose_target([0.250, 0, 0.220, 0, 1.57, 0])
         self.arm.go()
         self.arm.stop()
         self.arm.clear_pose_targets()
@@ -102,11 +102,11 @@ class move_arm_node:
     def pickup_bloc(self):
 
         # Custom trajectory
-        # target_pose = rospy.wait_for_message("/cap120/bloc_coords", Pose, timeout=5)
-        target_pose = Pose()
-        target_pose.position.x = 0.200
-        target_pose.position.y = -0.100
-        target_pose.position.z = 0.142
+        target_pose = rospy.wait_for_message("/cap120/object_in_camera", Pose, timeout=5)
+        # target_pose = Pose()
+        # target_pose.position.x = 0.200
+        # target_pose.position.y = -0.100
+        # target_pose.position.z = 0.142
         points_list = gen_trajectory(target_pose)
 
         # Initialize waypoints

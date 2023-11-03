@@ -25,7 +25,7 @@ class find_bloc_node:
         self.pub_found_blocs = True
 
         # Relevant topics
-        self.obj_coords_topic = "/cap120/bloc_coords"
+        self.obj_coords_topic = "/cap120/object_in_camera"
         self.rgb_topic = "/camera/color/image_raw"
         self.depth_topic = "/camera/aligned_depth_to_color/image_raw"
 
@@ -93,7 +93,8 @@ class find_bloc_node:
                 pub.publish(obj_coords)
 
         except Exception as e:
-            print("Error:", e)
+            # print("Error:", e)
+            pass
 
 
 
