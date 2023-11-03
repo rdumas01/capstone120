@@ -13,10 +13,12 @@ import numpy as np
 from compute_trajectory import gen_trajectory
 
 
+
 class move_arm_node:
 
 
     def __init__(self):
+
         # 初始化move_group的API
         moveit_commander.roscpp_initialize(sys.argv)
 
@@ -46,7 +48,58 @@ class move_arm_node:
 
         # Put arm in initial pose
         self.base_position()
-        target_pose_base = self.arm.get_current_pose()
+        self.target_pose_base = self.arm.get_current_pose()
+
+
+        self.main()
+
+
+        # 关闭并退出moveit
+        moveit_commander.roscpp_shutdown()
+        moveit_commander.os._exit(0)
+
+
+
+    def main(self):
+
+        # Main loop - waiting for action then execute it
+
+        self.execute_action = self.actions_dict() # Dictionary of all possible actions
+
+        rospy.loginfo('Entering main loop...')
+        stay_in_loop = True
+        while stay_in_loop:
+
+            rospy.loginfo('Waiting for action...')
+            action = rospy.wait_for_message('/cap120/next_action', String)
+            stay_in_loop = self.execute_action[action.data]()
+
+        rospy.loginfo('Exiting main loop...')
+
+
+
+    def base_position(self):
+
+        self.arm.set_pose_target([0.250, 0, 0.175, 0, 1.57, 0])
+        self.arm.go()
+        self.arm.stop()
+        self.arm.clear_pose_targets()
+
+        rospy.sleep(2)
+    
+
+
+    def actions_dict(self):
+        
+        execute_action = {'pickup' : self.pickup_bloc,
+                          'drop' : None,
+                          'exit' : self.exit}
+        
+        return execute_action
+    
+
+
+    def pickup_bloc(self):
 
         # Custom trajectory
         # target_pose = rospy.wait_for_message("/cap120/bloc_coords", Pose, timeout=5)
@@ -61,7 +114,7 @@ class move_arm_node:
 
         # Waypoint poses
         for i in range(1, len(points_list) - 1, 1):
-            wpose = deepcopy(target_pose_base.pose)
+            wpose = deepcopy(self.target_pose_base.pose)
             wpose.position.x = points_list[i][0]
             wpose.position.y = points_list[i][1]
             wpose.position.z = points_list[i][2]
@@ -85,7 +138,7 @@ class move_arm_node:
             # 打印运动规划进程
             if attempts % 10 == 0:
                 rospy.loginfo("Still trying after " + str(attempts) + " attempts...")
-                     
+                        
         # 如果路径规划成功（覆盖率100%）,则开始控制机械臂运动
         if fraction == 1.0:
             rospy.loginfo("Path computed successfully. Moving the self.arm.")
@@ -102,6 +155,11 @@ class move_arm_node:
         self.gripper.go()
         rospy.sleep(2)
 
+        return True
+    
+
+    def exit(self):
+
         # Go back to base pose
         self.base_position()
         rospy.sleep(1)
@@ -109,26 +167,14 @@ class move_arm_node:
         # Open gripper
         self.gripper.set_named_target('open')
         self.gripper.go()
-        rospy.sleep(2)
+        rospy.sleep(1)
 
         # 控制机械臂先回到初始化位置
         self.arm.set_named_target('sleep')
         self.arm.go()
         rospy.sleep(1)
-        
-        # 关闭并退出moveit
-        moveit_commander.roscpp_shutdown()
-        moveit_commander.os._exit(0)
 
-
-    def base_position(self):
-
-        self.arm.set_pose_target([0.250, 0, 0.175, 0, 1.57, 0])
-        self.arm.go()
-        self.arm.stop()
-        self.arm.clear_pose_targets()
-
-        rospy.sleep(2)
+        return False
 
 
 
