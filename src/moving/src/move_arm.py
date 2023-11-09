@@ -48,7 +48,6 @@ class move_arm_node:
 
         # Put arm in initial pose
         self.base_position()
-        self.target_pose_base = self.arm.get_current_pose()
 
 
         self.main()
@@ -84,6 +83,7 @@ class move_arm_node:
         self.arm.go()
         self.arm.stop()
         self.arm.clear_pose_targets()
+        self.target_pose_base = self.arm.get_current_pose()
 
         rospy.sleep(2)
     
@@ -92,7 +92,9 @@ class move_arm_node:
     def actions_dict(self):
         
         execute_action = {'pickup' : self.pickup_bloc,
-                          'drop' : None,
+                          'drop' : self.drop,
+                          'lookout' : self.lookout,
+                          'sleep' : self.sleep,
                           'exit' : self.exit}
         
         return execute_action
@@ -101,78 +103,108 @@ class move_arm_node:
 
     def pickup_bloc(self):
 
-        # Custom trajectory
-        target_pose = rospy.wait_for_message("/cap120/object_in_camera", Pose, timeout=5)
-        # target_pose = Pose()
-        # target_pose.position.x = 0.200
-        # target_pose.position.y = -0.100
-        # target_pose.position.z = 0.142
-        points_list = gen_trajectory(target_pose)
+        try:
+            # Custom trajectory
+            target_pose = rospy.wait_for_message("/cap120/object_in_base", Pose, timeout=5)
+            # target_pose = Pose()
+            # target_pose.position.x = 0.200
+            # target_pose.position.y = -0.100
+            # target_pose.position.z = 0.142
+            target_pose.position.z = -0.08
+            points_list = gen_trajectory(target_pose)
 
-        # Initialize waypoints
-        waypoints = []
+            rospy.sleep(.1)
+            # Initialize waypoints
+            waypoints = []
 
-        # Waypoint poses
-        for i in range(1, len(points_list) - 1, 1):
-            wpose = deepcopy(self.target_pose_base.pose)
-            wpose.position.x = points_list[i][0]
-            wpose.position.y = points_list[i][1]
-            wpose.position.z = points_list[i][2]
-            waypoints.append(deepcopy(wpose))
-        
+            # Waypoint poses
+            for i in range(1, len(points_list) - 1, 1):
+                wpose = deepcopy(self.target_pose_base.pose)
+                wpose.position.x = points_list[i][0]
+                wpose.position.y = points_list[i][1]
+                wpose.position.z = points_list[i][2]
+                waypoints.append(deepcopy(wpose))
+            
 
-        fraction = 0.0   #路径规划覆盖率
-        maxtries = 100   #最大尝试规划次数
-        attempts = 0     #已经尝试规划次数
-        # 设置机器臂当前的状态作为运动初始状态
-        self.arm.set_start_state_to_current_state()
-        # 尝试规划一条笛卡尔空间下的路径，依次通过所有路点，完成圆弧轨迹
-        while fraction < 1.0 and attempts < maxtries:
-            (plan, fraction) = self.arm.compute_cartesian_path (
-                                    waypoints,   # waypoint poses，路点列表
-                                    0.01,        # eef_step，终端步进值
-                                    0.0,         # jump_threshold，跳跃阈值
-                                    True)        # avoid_collisions，避障规划
-            # 尝试次数累加
-            attempts += 1
-            # 打印运动规划进程
-            if attempts % 10 == 0:
-                rospy.loginfo("Still trying after " + str(attempts) + " attempts...")
-                        
-        # 如果路径规划成功（覆盖率100%）,则开始控制机械臂运动
-        if fraction == 1.0:
-            rospy.loginfo("Path computed successfully. Moving the self.arm.")
-            self.arm.execute(plan)
-            rospy.loginfo("Path execution complete.")
-        # 如果路径规划失败，则打印失败信息
-        else:
-            rospy.loginfo("Path planning failed with only " + str(fraction) + " success after " + str(maxtries) + " attempts.")  
+            fraction = 0.0   #路径规划覆盖率
+            maxtries = 100   #最大尝试规划次数
+            attempts = 0     #已经尝试规划次数
+            # 设置机器臂当前的状态作为运动初始状态
+            self.arm.set_start_state_to_current_state()
+            # 尝试规划一条笛卡尔空间下的路径，依次通过所有路点，完成圆弧轨迹
+            while fraction < 1.0 and attempts < maxtries:
+                (plan, fraction) = self.arm.compute_cartesian_path (
+                                        waypoints,   # waypoint poses，路点列表
+                                        0.01,        # eef_step，终端步进值
+                                        0.0,         # jump_threshold，跳跃阈值
+                                        True)        # avoid_collisions，避障规划
+                # 尝试次数累加
+                attempts += 1
+                # 打印运动规划进程
+                if attempts % 10 == 0:
+                    rospy.loginfo("Still trying after " + str(attempts) + " attempts...")
+                            
+            # 如果路径规划成功（覆盖率100%）,则开始控制机械臂运动
+            if fraction == 1.0:
+                rospy.loginfo("Path computed successfully. Moving the self.arm.")
+                self.arm.execute(plan)
+                rospy.loginfo("Path execution complete.")
+            # 如果路径规划失败，则打印失败信息
+            else:
+                rospy.loginfo("Path planning failed with only " + str(fraction) + " success after " + str(maxtries) + " attempts.")  
 
-        rospy.sleep(1)
+            rospy.sleep(1)
 
-        # Close gripper
-        self.gripper.set_joint_value_target([-0.0197, -0.0197])
-        self.gripper.go()
-        rospy.sleep(2)
+            # Close gripper
+            self.gripper.set_joint_value_target([-0.03, -0.03])
+            self.gripper.go()
+            rospy.sleep(3)
+        except:
+            pass
+
+        self.base_position()
 
         return True
     
+
+    def drop(self):
+
+        self.gripper.set_named_target('open')
+        self.gripper.go()
+
+        return True
+
+
+    def lookout(self):
+        
+        self.base_position()
+
+        return True
+
+
+    def sleep(self):
+
+        self.arm.set_named_target('sleep')
+        self.arm.go()
+
+        return True
+
 
     def exit(self):
 
         # Go back to base pose
         self.base_position()
-        rospy.sleep(1)
+        # rospy.sleep(1)
 
         # Open gripper
         self.gripper.set_named_target('open')
         self.gripper.go()
-        rospy.sleep(1)
+        # rospy.sleep(1)
 
         # 控制机械臂先回到初始化位置
         self.arm.set_named_target('sleep')
         self.arm.go()
-        rospy.sleep(1)
+        # rospy.sleep(1)
 
         return False
 

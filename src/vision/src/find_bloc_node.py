@@ -55,7 +55,7 @@ class find_bloc_node:
         '''
         self.fx = msg.K[0]
         self.fy = msg.K[4]
-        self.cs = msg.K[2]
+        self.cx = msg.K[2]
         self.cy = msg.K[5]
 
 
@@ -81,13 +81,15 @@ class find_bloc_node:
                 obj = objects[[key for key in objects.keys()][0]]
                 ox, oy = obj['center']
                 depth = np.mean(np.array([depth_img[x, y] for (x, y) in zip(obj['pixels'][0], obj['pixels'][1])]))
+                
+                depth /= 1000
 
                 pub = rospy.Publisher(self.obj_coords_topic, Pose, queue_size=1)
 
                 obj_coords = Pose()
 
-                obj_coords.position.x = (ox - self.cx) * depth / self.fx       #TODO verify
-                obj_coords.position.y = (oy - self.cy) * depth / self.fy       #TODO verify
+                obj_coords.position.x = (ox - self.cx) * depth / self.fx                  #TODO verify
+                obj_coords.position.y = (oy - self.cy - 0.10) * depth / self.fy           #TODO verify
                 obj_coords.position.z = depth
 
                 pub.publish(obj_coords)
