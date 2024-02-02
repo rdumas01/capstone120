@@ -84,66 +84,70 @@ class find_bloc_node:
             
             if len(objects.keys()) > 0:
 
-                obj = objects[[key for key in objects.keys()][0]][0]
-                ox, oy = obj['center']
-                
-                # Step 1: get camera pose in ground frame
-                try:
-                    camera_pose : TransformStamped = self.tfBuffer.lookup_transform(self.origin_frame, self.cam_link, rospy.Time()).transform
-                    camera_position : Point = camera_pose.translation
-                    camera_rotation : Quaternion = camera_pose.rotation
-                    quat = [camera_rotation.x, camera_rotation.y, camera_rotation.z, camera_rotation.w]
-                    camera_yaw = tf.transformations.euler_from_quaternion(quat)[2]
-                except Exception as e:
-                    rospy.logerr("Could not get camera position...")
-                    print(e)
+                colors = [key for key in objects.keys()]
+                for col in colors:
+                    for i, obj in enumerate(objects[col]):
 
-                # Step 2: get arbitrary point that simply gives the direction toward the object
-                arbitrary_depth = 1
-                arbitrary_point = Point()
-                arbitrary_point.x = (ox - self.cx) * arbitrary_depth / self.fx
-                arbitrary_point.y = (oy - self.cy) * arbitrary_depth / self.fy
-                arbitrary_point.z = arbitrary_depth
+                        # obj = objects[[key for key in objects.keys()][0]][0]
+                        ox, oy = obj['center']
+                        
+                        # Step 1: get camera pose in ground frame
+                        try:
+                            camera_pose : TransformStamped = self.tfBuffer.lookup_transform(self.origin_frame, self.cam_link, rospy.Time()).transform
+                            camera_position : Point = camera_pose.translation
+                            camera_rotation : Quaternion = camera_pose.rotation
+                            quat = [camera_rotation.x, camera_rotation.y, camera_rotation.z, camera_rotation.w]
+                            camera_yaw = tf.transformations.euler_from_quaternion(quat)[2]
+                        except Exception as e:
+                            rospy.logerr("Could not get camera position...")
+                            print(e)
 
-                # try:
-                #     self.tfbr.sendTransform((arbitrary_point.x, arbitrary_point.y, arbitrary_point.z),
-                #                 tf.transformations.quaternion_from_euler(0, 0, camera_yaw + obj['yaw']),
-                #                 rospy.Time.now(),
-                #                 "color" + "_bloc_cam",
-                #                 self.cam_link)
-                # except Exception as e:
-                #     print(e)
+                        # Step 2: get arbitrary point that simply gives the direction toward the object
+                        arbitrary_depth = 1
+                        arbitrary_point = Point()
+                        arbitrary_point.x = (ox - self.cx) * arbitrary_depth / self.fx
+                        arbitrary_point.y = (oy - self.cy) * arbitrary_depth / self.fy
+                        arbitrary_point.z = arbitrary_depth
 
-                # Get arbitrary_point in world frame
-                try:
-                    self.tf_listener.waitForTransform(self.origin_frame, self.cam_link, rospy.Time(), rospy.Duration(0.5))
-                    arbitrary_point_world : Point = self.tf_listener.transformPoint(
-                                                    self.origin_frame,
-                                                    PointStamped(header=Header(stamp=rospy.Time(),
-                                                                               frame_id=self.cam_link),
-                                                                               point=arbitrary_point)).point
-                except Exception as e:
-                    rospy.logerr("Could not express arbitrary point in world frame...")
-                    print(e)
+                        # try:
+                        #     self.tfbr.sendTransform((arbitrary_point.x, arbitrary_point.y, arbitrary_point.z),
+                        #                 tf.transformations.quaternion_from_euler(0, 0, camera_yaw + obj['yaw']),
+                        #                 rospy.Time.now(),
+                        #                 "color" + "_bloc_cam",
+                        #                 self.cam_link)
+                        # except Exception as e:
+                        #     print(e)
 
-                # Step 3: solve for missing factor
-                alpha = camera_position.z / (camera_position.z - arbitrary_point_world.z)
+                        # Get arbitrary_point in world frame
+                        try:
+                            self.tf_listener.waitForTransform(self.origin_frame, self.cam_link, rospy.Time(), rospy.Duration(0.5))
+                            arbitrary_point_world : Point = self.tf_listener.transformPoint(
+                                                            self.origin_frame,
+                                                            PointStamped(header=Header(stamp=rospy.Time(),
+                                                                                    frame_id=self.cam_link),
+                                                                                    point=arbitrary_point)).point
+                        except Exception as e:
+                            rospy.logerr("Could not express arbitrary point in world frame...")
+                            print(e)
 
-                # Step 4: get object coordinates
-                obj_coords = Pose()
-                obj_coords.position.x = (1-alpha) * camera_position.x + alpha * arbitrary_point_world.x
-                obj_coords.position.y = (1-alpha) * camera_position.y + alpha * arbitrary_point_world.y
-                obj_coords.position.z = 0
+                        # Step 3: solve for missing factor
+                        alpha = camera_position.z / (camera_position.z - arbitrary_point_world.z)
 
-                # Step 5: publish transform to TF
-                self.tfbr.sendTransform((obj_coords.position.x, obj_coords.position.y, obj_coords.position.z),
-                            tf.transformations.quaternion_from_euler(0, 0, camera_yaw + obj['yaw']),
-                            rospy.Time.now(),
-                            "color" + "_bloc",
-                            self.origin_frame)
-                
-                pub = rospy.Publisher(self.obj_coords_topic, Pose, queue_size=1)
-                pub.publish(obj_coords)
+                        # Step 4: get object coordinates
+                        obj_coords = Pose()
+                        obj_coords.position.x = (1-alpha) * camera_position.x + alpha * arbitrary_point_world.x
+                        obj_coords.position.y = (1-alpha) * camera_position.y + alpha * arbitrary_point_world.y
+                        obj_coords.position.z = 0
+
+                        # Step 5: publish transform to TF
+                        self.tfbr.sendTransform((obj_coords.position.x, obj_coords.position.y, obj_coords.position.z),
+                                    tf.transformations.quaternion_from_euler(0, 0, camera_yaw + obj['yaw']),
+                                    rospy.Time.now(),
+                                    str(col) + "_bloc_" + str(i),
+                                    self.origin_frame)
+                        
+                        pub = rospy.Publisher(self.obj_coords_topic, Pose, queue_size=1)
+                        pub.publish(obj_coords)
 
         except Exception as e:
             # print("Error:", e)
