@@ -111,43 +111,47 @@ class move_arm_node:
         max_attempts = 3  # set up maximum planning attemps
         attempt = 0
         found_plan = None  # set found_plan in the beginning
+        planners = ['RRTstar','RRTConnect', 'RRT', ] 
+        
+        while attempt < max_attempts and not found_plan:
+            for planner in planners:  
+                try:
+                    # set plannar
+                    self.arm.set_planner_id(planner)  # try different planner
+                    self.arm.set_planning_time(15)  # 
 
-        while attempt < max_attempts:
-            try:
-                # setup RRT planner
-                self.arm.set_planner_id('RRT')
-                self.arm.set_planning_time(15)  # set planning time for each time
+                    # if success
+                    target_pose = rospy.wait_for_message("/cap120/object_in_base", Pose, timeout=5)
+                    
+                    #target_pose_stamped = PoseStamped()
+                    #target_pose_stamped.header.frame_id = "world"
+                    #target_pose_stamped.header.stamp = rospy.Time.now()
+                    #target_pose_stamped.pose = target_pose
 
-                #target_pose = rospy.wait_for_message("/cap120/rrt_test", Pose, timeout=5)
-                ########################### if success, we could test
-                target_pose = rospy.wait_for_message("/cap120/object_in_base", Pose, timeout=5)
-                
+                    #self.arm.set_pose_target(target_pose_stamped)
+                    self.arm.set_joint_value_target(target_pose, True)
+                    #Just replace "group.set_pose_target(pose_goal)" line with "group.set_joint_value_target(pose_goal, True)" 
+                    plan = self.arm.plan()
 
-                # target_pose_stamped = PoseStamped()
-                # target_pose_stamped.header.frame_id = "world"
-                # target_pose_stamped.header.stamp = rospy.Time.now()
-                # target_pose_stamped.pose = target_pose
-                # self.arm.set_pose_target(target_pose_stamped)
-
-                self.arm.set_joint_value_target(target_pose, True)
-                
-
-                plan = self.arm.plan()
-
-                if plan and plan[0] and len(plan[1].joint_trajectory.points) > 0:  # check whether planning is available
-                    found_plan = plan[1]  # use plan second 
+                    # check if success
+                    if plan and plan[0] and len(plan[1].joint_trajectory.points) > 0:
+                        found_plan = plan[1]  
+                        rospy.loginfo(f"{planner} found a plan!")
+                        break  
+                    else:
+                        rospy.loginfo(f"{planner} failed, trying next planner.")
+                except rospy.ROSException as e:
+                    rospy.logerr("ROS error: {}".format(e))
                     break  
-                else:
-                    rospy.loginfo("RRT failed, try times?: {}".format(attempt + 1))
-            except rospy.ROSException as e:
-                rospy.logerr("ROS error: {}".format(e))
-            except Exception as e:
-                rospy.logerr("error in the planning: {}".format(e))
+                except Exception as e:
+                    rospy.logerr(f"Error in the planning with {planner}: {e}")
+                    break  
 
             attempt += 1
 
         if found_plan:
             rospy.loginfo("found plan!!!!!")
+            self.gripper.set_joint_value_target([0.00, 0.00])
             self.arm.execute(found_plan)  # execute the plan
             ######################if success
             self.gripper.set_joint_value_target([-0.027, -0.027])
