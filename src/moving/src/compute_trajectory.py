@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
 
 
+
 def gen_trajectory(target_pose):
 
     tfBuffer = tf2_ros.Buffer()
@@ -34,6 +35,8 @@ def gen_trajectory(target_pose):
     plot_trajectory(waypoints)
 
     return waypoints
+
+
 
 
 
