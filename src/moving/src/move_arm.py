@@ -123,12 +123,14 @@ class move_arm_node:
                 target_pose = rospy.wait_for_message("/cap120/object_in_base", Pose, timeout=5)
                 
 
-                target_pose_stamped = PoseStamped()
-                target_pose_stamped.header.frame_id = "world"
-                target_pose_stamped.header.stamp = rospy.Time.now()
-                target_pose_stamped.pose = target_pose
+                # target_pose_stamped = PoseStamped()
+                # target_pose_stamped.header.frame_id = "world"
+                # target_pose_stamped.header.stamp = rospy.Time.now()
+                # target_pose_stamped.pose = target_pose
+                # self.arm.set_pose_target(target_pose_stamped)
 
-                self.arm.set_pose_target(target_pose_stamped)
+                self.arm.set_joint_value_target(target_pose, True)
+                
 
                 plan = self.arm.plan()
 
