@@ -39,6 +39,8 @@ class find_bloc_node:
         self.cam_link = 'sgr532/usb_cam_link'
         self.origin_frame = 'world'
 
+        self.obj_h = 0.01   # object height
+
         self.bridge = CvBridge()
 
         # Camera info
@@ -71,12 +73,11 @@ class find_bloc_node:
         '''
         Called every time a camera frame is published on the /cap120/camera topic.
         Publishes the (x, y) coordinates of the first object found in the frame to the /cap120/bloc_coords topic.
-
+        
         Args:
             rgb_img: rgb frame (ROS Image) from the RealSense
             depth_img: depth frame (ROS Image) from the RealSense, aligned to the rgb frame
         '''
-        
         try:
             rgb_img = self.bridge.imgmsg_to_cv2(rgb_img, desired_encoding="bgr8")
 
@@ -131,17 +132,17 @@ class find_bloc_node:
                             print(e)
 
                         # Step 3: solve for missing factor
-                        alpha = camera_position.z / (camera_position.z - arbitrary_point_world.z)
+                        alpha = (camera_position.z - self.obj_h) / (camera_position.z - arbitrary_point_world.z)
 
                         # Step 4: get object coordinates
                         obj_coords = Pose()
                         obj_coords.position.x = (1-alpha) * camera_position.x + alpha * arbitrary_point_world.x
                         obj_coords.position.y = (1-alpha) * camera_position.y + alpha * arbitrary_point_world.y
-                        obj_coords.position.z = 0
+                        obj_coords.position.z = (1-alpha) * camera_position.z + alpha * arbitrary_point_world.z
 
                         # Step 5: publish transform to TF
                         self.tfbr.sendTransform((obj_coords.position.x, obj_coords.position.y, obj_coords.position.z),
-                                    tf.transformations.quaternion_from_euler(0, 0, camera_yaw + obj['yaw']),
+                                    tf.transformations.quaternion_from_euler(0, np.pi/2, camera_yaw + obj['yaw']),
                                     rospy.Time.now(),
                                     str(col) + "_bloc_" + str(i),
                                     self.origin_frame)
