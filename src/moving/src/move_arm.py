@@ -11,7 +11,8 @@ import tf
 import numpy as np
 
 from compute_trajectory import gen_trajectory
-
+from moveit_msgs.msg import OrientationConstraint, Constraints
+from get_target_pose import get_target_pose
 
 
 class move_arm_node:
@@ -49,9 +50,7 @@ class move_arm_node:
         # Put arm in initial pose
         self.base_position()
 
-
         self.main()
-
 
         # 关闭并退出moveit
         moveit_commander.roscpp_shutdown()
@@ -68,11 +67,20 @@ class move_arm_node:
         rospy.loginfo('Entering main loop...')
         stay_in_loop = True
         while stay_in_loop:
-
+            
             rospy.loginfo('Waiting for action...')
             action = rospy.wait_for_message('/cap120/next_action', String)
-            stay_in_loop = self.execute_action[action.data]()
 
+            self.gripper.set_joint_value_target([-0.007, -0.007])
+            self.gripper.go()
+            rospy.sleep(3)
+
+            if action.data in self.execute_action:
+                stay_in_loop = self.execute_action[action.data]()
+            else:
+                rospy.loginfo(f"Received invalid action '{action.data}'. Please send a valid action.")
+            rospy.sleep(1) #pretty important to have a sleep here to make sure the previous action have already be executed
+        
         rospy.loginfo('Exiting main loop...')
 
 
@@ -95,10 +103,101 @@ class move_arm_node:
                           'drop' : self.drop,
                           'lookout' : self.lookout,
                           'sleep' : self.sleep,
+                          'RRTpickup' : self.pickup_by_rrt,
+                          'drop_goal':self.drop_goal,
+                          'pickup_from_above':self.pickup_from_above,
                           'exit' : self.exit}
         
         return execute_action
-    
+
+
+
+    def pickup_from_above(self):
+        try:    
+            target_pose : Pose = get_target_pose("green")
+
+            # Step 1: Open gripper
+            self.gripper.set_joint_value_target([0.00, 0.00])
+            self.gripper.go()
+
+            # Step 2: Place gripper above target
+            target_pose.position.z += 0.16
+            self.arm.set_joint_value_target(target_pose, True)
+            self.arm.go()
+
+            # Step 3: Lower the gripper to target
+            target_pose.position.z -= 0.1
+            self.arm.set_joint_value_target(target_pose, True)
+            self.arm.go()
+
+            # Step 4: Close gripper
+            self.gripper.set_joint_value_target([-0.027, -0.027])
+            self.gripper.go()
+            rospy.sleep(3)
+
+            # Step 5: Check if object has been grabbed
+            # TODO
+
+            # Step 6: Return to base position
+            self.base_position()
+
+        except Exception as e:
+            rospy.logerr(e)
+        
+        return True 
+
+
+
+    def pickup_by_rrt(self,target_pose):
+        max_attempts = 3  # set up maximum planning attemps
+        attempt = 0
+        found_plan = None  # set found_plan in the beginning
+        planners = ['RRTstar','RRTConnect', 'RRT', ] 
+        
+        while attempt < max_attempts and not found_plan:
+            for planner in planners:  
+                try:
+                    # set plannar
+                    self.arm.set_planner_id(planner)  # try different planner
+                    self.arm.set_planning_time(15)  # 
+
+                    # if success
+                    # target_pose = rospy.wait_for_message("/cap120/object_in_base", Pose, timeout=5)
+                    
+                    #target_pose_stamped = PoseStamped()
+                    #target_pose_stamped.header.frame_id = "world"
+                    #target_pose_stamped.header.stamp = rospy.Time.now()
+                    #target_pose_stamped.pose = target_pose
+                    #self.arm.set_pose_target(target_pose_stamped)
+                    self.arm.set_joint_value_target(target_pose, True)
+                    #Just replace "group.set_pose_target(pose_goal)" line with "group.set_joint_value_target(pose_goal, True)" 
+                    plan = self.arm.plan()
+
+                    # check if success
+                    if plan and plan[0] and len(plan[1].joint_trajectory.points) > 0:
+                        found_plan = plan[1]  
+                        rospy.loginfo(f"{planner} found a plan!")
+                        break  
+                    else:
+                        rospy.loginfo(f"{planner} failed, trying next planner.")
+                except rospy.ROSException as e:
+                    rospy.logerr("ROS error: {}".format(e))
+                    break  
+                except Exception as e:
+                    rospy.logerr(f"Error in the planning with {planner}: {e}")
+                    break  
+
+            attempt += 1
+
+        if found_plan:
+            rospy.loginfo("found plan!!!!!")
+            
+            self.arm.execute(found_plan)  # execute the plan
+            
+        else:
+            rospy.loginfo("couldn't founr viable planning in {} attempts".format(max_attempts))
+
+        return found_plan  # return plan（if any）
 
 
     def pickup_bloc(self):
@@ -106,11 +205,12 @@ class move_arm_node:
         try:
             # Custom trajectory
             target_pose = rospy.wait_for_message("/cap120/object_in_base", Pose, timeout=5)
+            #rospy.loginfo("we ar moving to ",target_pose)
             # target_pose = Pose()
             # target_pose.position.x = 0.200
             # target_pose.position.y = -0.100
             # target_pose.position.z = 0.142
-            target_pose.position.z = -0.08
+            #target_pose.position.z = -0.08
             points_list = gen_trajectory(target_pose)
 
             rospy.sleep(.1)
@@ -153,7 +253,7 @@ class move_arm_node:
             else:
                 rospy.loginfo("Path planning failed with only " + str(fraction) + " success after " + str(maxtries) + " attempts.")  
 
-            rospy.sleep(1)
+            rospy.sleep(3)
 
             # Close gripper
             self.gripper.set_joint_value_target([-0.03, -0.03])
@@ -166,8 +266,69 @@ class move_arm_node:
 
         return True
     
+    def drop_goal(self):
+        max_attempts = 3  
+        attempt = 0
+        found_plan = None  
+        planners = ['RRTstar','RRTConnect', 'RRT', ]  # bring more choice for solver
+
+        while attempt < max_attempts and not found_plan:
+            for planner in planners:  
+                try:
+                    # set plannar
+                    self.arm.set_planner_id(planner)  # try different planner
+                    self.arm.set_planning_time(15)  # 
+
+                    # if success
+                    target_pose = rospy.wait_for_message("/cap120/drop_goal", Pose, timeout=5)
+                    
+                    #target_pose_stamped = PoseStamped()
+                    #target_pose_stamped.header.frame_id = "world"
+                    #target_pose_stamped.header.stamp = rospy.Time.now()
+                    #target_pose_stamped.pose = target_pose
+
+                    #self.arm.set_pose_target(target_pose_stamped)
+                    self.arm.set_joint_value_target(target_pose, True)
+                    #Just replace "group.set_pose_target(pose_goal)" line with "group.set_joint_value_target(pose_goal, True)" 
+                    plan = self.arm.plan()
+
+                    # check if success
+                    if plan and plan[0] and len(plan[1].joint_trajectory.points) > 0:
+                        found_plan = plan[1]  
+                        rospy.loginfo(f"{planner} found a plan!")
+                        break  
+                    else:
+                        rospy.loginfo(f"{planner} failed, trying next planner.")
+                except rospy.ROSException as e:
+                    rospy.logerr("ROS error: {}".format(e))
+                    break  
+                except Exception as e:
+                    rospy.logerr(f"Error in the planning with {planner}: {e}")
+                    break  
+
+            attempt += 1
+
+        if found_plan:
+            rospy.loginfo("Executing found plan!")
+            self.arm.execute(found_plan) 
+           
+            self.gripper.set_named_target('open')
+            self.gripper.go()
+            rospy.sleep(3)
+        else:
+            rospy.loginfo(f"Couldn't find viable planning in {max_attempts} attempts with different planners.")
+
+        self.base_position()
+        return found_plan  
+                
+         
+           
+        
+
+        
 
     def drop(self):
+        
 
         self.gripper.set_named_target('open')
         self.gripper.go()
