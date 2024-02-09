@@ -9,8 +9,8 @@ import tf
 import tf2_ros
 
 from std_msgs.msg import Header
-from sensor_msgs.msg import Image, CameraInfo         #TODO
-from geometry_msgs.msg import Pose, Point, PointStamped, TransformStamped, Quaternion      #TODO
+from sensor_msgs.msg import Image, CameraInfo
+from geometry_msgs.msg import Pose, Point, PointStamped, TransformStamped, Quaternion
 
 
 
@@ -89,7 +89,6 @@ class find_bloc_node:
                 for col in colors:
                     for i, obj in enumerate(objects[col]):
 
-                        # obj = objects[[key for key in objects.keys()][0]][0]
                         ox, oy = obj['center']
                         
                         # Step 1: get camera pose in ground frame
@@ -109,15 +108,6 @@ class find_bloc_node:
                         arbitrary_point.x = (ox - self.cx) * arbitrary_depth / self.fx
                         arbitrary_point.y = (oy - self.cy) * arbitrary_depth / self.fy
                         arbitrary_point.z = arbitrary_depth
-
-                        # try:
-                        #     self.tfbr.sendTransform((arbitrary_point.x, arbitrary_point.y, arbitrary_point.z),
-                        #                 tf.transformations.quaternion_from_euler(0, 0, camera_yaw + obj['yaw']),
-                        #                 rospy.Time.now(),
-                        #                 "color" + "_bloc_cam",
-                        #                 self.cam_link)
-                        # except Exception as e:
-                        #     print(e)
 
                         # Get arbitrary_point in world frame
                         try:
@@ -151,7 +141,7 @@ class find_bloc_node:
                         pub.publish(obj_coords)
 
         except Exception as e:
-            # print("Error:", e)
+            rospy.logerr(e)
             pass
 
 
