@@ -16,29 +16,8 @@ from compute_trajectory import gen_trajectory
 
 class move_arm_node:
 
-    # define test startin_point
-    bloc_1 = Pose()
-    bloc_1.position.x = 0.220
-    bloc_1.position.y = 0.222
-    bloc_1.position.z = 0.109
-
-    bloc_2 = Pose()
-    bloc_2.position.x = 0.220
-    bloc_2.position.y = -0.222
-    bloc_2.position.z = 0.109
-
-    default_pose = Pose()
-    default_pose.position.x = 0.200
-    default_pose.position.y = -0.100
-    default_pose.position.z = -0.108
-
-
-    bloc_list = [[bloc_1], [bloc_2]]
-
 
     def __init__(self):
-
-        rospy.loginfo('move_arm has started')
 
         # 初始化move_group的API
         moveit_commander.roscpp_initialize(sys.argv)
@@ -87,40 +66,17 @@ class move_arm_node:
         self.execute_action = self.actions_dict() # Dictionary of all possible actions
 
         rospy.loginfo('Entering main loop...')
-        # stay_in_loop = True
-        # while stay_in_loop:
 
-        #     rospy.loginfo('Waiting for action...')
-        #     action = rospy.wait_for_message('/cap120/next_action', String)
-        #     stay_in_loop = self.execute_action[action.data]()
+        block_1 = [0.220, 0.222, 0.197, -0.012, 0.293, -0.004, 0.956]
+        block_2 = [0.220, -0.222, 0.197, -0.012, 0.293, -0.004, 0.956]
+        all_blocks = [block_1, block_2] # number of blocks
+        print(len(all_blocks))
+        target_1 = [0.220, 0.000, 0.197, -0.012, 0.293, -0.004, 0.956]
+        blueprint = [] # list of blueprint target points
 
-        # test two sequential actions (pickup)
-        # self.pickup_bloc(self.bloc_1)
-        # Add move to vertical offset point
-        # Add camera look again
-        # Then go grab
-        # Add gripper check: if grabbed: drop_bloc, else: open gripper and go back to home position
-        
-        self.lookout()
-        self.drop()
-
-        for i in range(len(self.bloc_list)):
-        
-            grabbed = False
-
-            while not grabbed:
-                
-                self.drop()
-                self.pickup_bloc(self.bloc_list[i][0])
-                rospy.sleep(1)
-                # if grabbed, return True, then exit while loop to execute drop_bloc
-                grabbed = self.check_closure()
-                rospy.sleep(1)
-
-            self.drop_bloc(self.default_pose)
-            rospy.sleep(1)
-
-        self.sleep()
+        for i in range(len(all_blocks)):
+            self.pickup_bloc(all_blocks[i])
+            rospy.sleep(10)
 
         rospy.loginfo('Exiting main loop...')
 
@@ -148,18 +104,27 @@ class move_arm_node:
         
         return execute_action
     
+    def create_pose_from_list(data_list):
+        pose = Pose()
+        pose.position.x = data_list[0]
+        pose.position.y = data_list[1]
+        pose.position.z = data_list[2]
+        pose.orientation.x = data_list[3]
+        pose.orientation.y = data_list[4]
+        pose.orientation.z = data_list[5]
+        pose.orientation.w = data_list[6]
+        return pose
 
-
-    def pickup_bloc(self, target_pose = default_pose):
+    def pickup_bloc(self, target_list):
 
         try:
             # Custom trajectory
-            # target_pose = rospy.wait_for_message("/cap120/object_in_base", Pose, timeout=5)
+            target_pose = self.create_pose_from_list(target_list)
             # target_pose = Pose()
             # target_pose.position.x = 0.200
             # target_pose.position.y = -0.100
             # target_pose.position.z = 0.142
-            # target_pose.position.z = -0.08
+            target_pose.position.z = -0.08
             points_list = gen_trajectory(target_pose)
 
             rospy.sleep(.1)
@@ -222,91 +187,7 @@ class move_arm_node:
         self.gripper.go()
 
         return True
-    
-    def drop_bloc(self, target_pose = default_pose):
 
-        try:
-            # Custom trajectory
-            #target_pose = rospy.wait_for_message("/cap120/object_in_base", Pose, timeout=5)
-            # target_pose = Pose()
-            # target_pose.position.x = 0.200
-            # target_pose.position.y = -0.100
-            # target_pose.position.z = 0.142
-            target_pose.position.z = -0.08
-            points_list = gen_trajectory(target_pose)
-
-            rospy.sleep(.1)
-            # Initialize waypoints
-            waypoints = []
-
-            # Waypoint poses
-            for i in range(1, len(points_list) - 1, 1):
-                wpose = deepcopy(self.target_pose_base.pose)
-                wpose.position.x = points_list[i][0]
-                wpose.position.y = points_list[i][1]
-                wpose.position.z = points_list[i][2]
-                waypoints.append(deepcopy(wpose))
-            
-
-            fraction = 0.0   #路径规划覆盖率
-            maxtries = 100   #最大尝试规划次数
-            attempts = 0     #已经尝试规划次数
-            # 设置机器臂当前的状态作为运动初始状态
-            self.arm.set_start_state_to_current_state()
-            # 尝试规划一条笛卡尔空间下的路径，依次通过所有路点，完成圆弧轨迹
-            while fraction < 1.0 and attempts < maxtries:
-                (plan, fraction) = self.arm.compute_cartesian_path (
-                                        waypoints,   # waypoint poses，路点列表
-                                        0.01,        # eef_step，终端步进值
-                                        0.0,         # jump_threshold，跳跃阈值
-                                        True)        # avoid_collisions，避障规划
-                # 尝试次数累加
-                attempts += 1
-                # 打印运动规划进程
-                if attempts % 10 == 0:
-                    rospy.loginfo("Still trying after " + str(attempts) + " attempts...")
-                            
-            # 如果路径规划成功（覆盖率100%）,则开始控制机械臂运动
-            if fraction == 1.0:
-                rospy.loginfo("Path computed successfully. Moving the self.arm.")
-                self.arm.execute(plan)
-                rospy.loginfo("Path execution complete.")
-            # 如果路径规划失败，则打印失败信息
-            else:
-                rospy.loginfo("Path planning failed with only " + str(fraction) + " success after " + str(maxtries) + " attempts.")  
-
-            rospy.sleep(1)
-
-            # Close gripper
-            self.gripper.set_joint_value_target([-0.03, -0.03])
-            self.gripper.go()
-            rospy.sleep(3)
-        except:
-            pass
-        
-        self.drop()
-        self.base_position()
-
-        return True
-
-    '''
-    check for full closure
-    '''
-    def check_closure(self):
-        # get gripper value for full closure checking
-        closure = self.gripper.get_current_joint_values()
-        
-        # set error threshold
-        error = 0.005
-        close_val = -0.029
-        try:
-            if ((closure[0] - close_val)> error and (closure[1] - close_val)> error):
-                return True
-
-        except:
-            pass
-
-        return False
 
     def lookout(self):
         
@@ -350,9 +231,8 @@ if __name__ == "__main__":
         # 初始化ROS节点
         rospy.init_node('move_arm_node', anonymous=True)
 
-        rospy.wait_for_message("/start_topic", String) #
+        rospy.wait_for_message("/start_topic", String)
         move_arm_node()
 
     except rospy.ROSInterruptException:
         pass
-

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: UTF-8 -*-
+# -- coding: UTF-8 --
 
 import rospy, sys
 import moveit_commander
@@ -20,23 +20,20 @@ class move_arm_node:
     bloc_1 = Pose()
     bloc_1.position.x = 0.220
     bloc_1.position.y = 0.222
-    bloc_1.position.z = 0.109
+    bloc_1.position.z = 0
 
     bloc_2 = Pose()
     bloc_2.position.x = 0.220
     bloc_2.position.y = -0.222
-    bloc_2.position.z = 0.109
+    bloc_2.position.z = 0
 
     default_pose = Pose()
-    default_pose.position.x = 0.200
-    default_pose.position.y = -0.100
-    default_pose.position.z = -0.108
+    default_pose.position.x = 0.220
+    default_pose.position.y = 0
+    default_pose.position.z = 0
 
 
-    bloc_list = [[bloc_1], [bloc_2]]
-
-
-    def __init__(self):
+    def _init_(self):
 
         rospy.loginfo('move_arm has started')
 
@@ -87,7 +84,7 @@ class move_arm_node:
         self.execute_action = self.actions_dict() # Dictionary of all possible actions
 
         rospy.loginfo('Entering main loop...')
-        # stay_in_loop = True
+        stay_in_loop = True
         # while stay_in_loop:
 
         #     rospy.loginfo('Waiting for action...')
@@ -95,32 +92,11 @@ class move_arm_node:
         #     stay_in_loop = self.execute_action[action.data]()
 
         # test two sequential actions (pickup)
-        # self.pickup_bloc(self.bloc_1)
-        # Add move to vertical offset point
-        # Add camera look again
-        # Then go grab
-        # Add gripper check: if grabbed: drop_bloc, else: open gripper and go back to home position
-        
-        self.lookout()
-        self.drop()
-
-        for i in range(len(self.bloc_list)):
-        
-            grabbed = False
-
-            while not grabbed:
-                
-                self.drop()
-                self.pickup_bloc(self.bloc_list[i][0])
-                rospy.sleep(1)
-                # if grabbed, return True, then exit while loop to execute drop_bloc
-                grabbed = self.check_closure()
-                rospy.sleep(1)
-
-            self.drop_bloc(self.default_pose)
-            rospy.sleep(1)
-
-        self.sleep()
+        self.pickup_bloc(self.bloc_1)
+        self.drop_bloc(self.default_pose)
+        # self.lookout() don't need because already lookout() at the end of drop_bloc()
+        self.pickup_bloc(self.bloc_2)
+        self.drop_bloc(self.default_pose)
 
         rospy.loginfo('Exiting main loop...')
 
@@ -154,12 +130,12 @@ class move_arm_node:
 
         try:
             # Custom trajectory
-            # target_pose = rospy.wait_for_message("/cap120/object_in_base", Pose, timeout=5)
+            #target_pose = rospy.wait_for_message("/cap120/object_in_base", Pose, timeout=5)
             # target_pose = Pose()
             # target_pose.position.x = 0.200
             # target_pose.position.y = -0.100
             # target_pose.position.z = 0.142
-            # target_pose.position.z = -0.08
+            target_pose.position.z = -0.08
             points_list = gen_trajectory(target_pose)
 
             rospy.sleep(.1)
@@ -222,7 +198,7 @@ class move_arm_node:
         self.gripper.go()
 
         return True
-    
+
     def drop_bloc(self, target_pose = default_pose):
 
         try:
@@ -289,25 +265,6 @@ class move_arm_node:
 
         return True
 
-    '''
-    check for full closure
-    '''
-    def check_closure(self):
-        # get gripper value for full closure checking
-        closure = self.gripper.get_current_joint_values()
-        
-        # set error threshold
-        error = 0.005
-        close_val = -0.029
-        try:
-            if ((closure[0] - close_val)> error and (closure[1] - close_val)> error):
-                return True
-
-        except:
-            pass
-
-        return False
-
     def lookout(self):
         
         self.base_position()
@@ -355,4 +312,3 @@ if __name__ == "__main__":
 
     except rospy.ROSInterruptException:
         pass
-
