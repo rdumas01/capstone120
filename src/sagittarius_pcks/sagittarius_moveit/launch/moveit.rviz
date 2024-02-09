@@ -1,12 +1,14 @@
 Panels:
   - Class: rviz/Displays
-    Help Height: 84
+    Help Height: 0
     Name: Displays
     Property Tree Widget:
       Expanded:
         - /MotionPlanning1
+        - /TF1
+        - /TF1/Frames1
       Splitter Ratio: 0.5
-    Tree Height: 203
+    Tree Height: 359
   - Class: rviz/Help
     Name: Help
   - Class: rviz/Views
@@ -123,7 +125,7 @@ Visualization Manager:
             Show Axes: false
             Show Trail: false
             Value: true
-          world:
+          sgr532/usb_cam_link:
             Alpha: 1
             Show Axes: false
             Show Trail: false
@@ -226,7 +228,7 @@ Visualization Manager:
             Show Axes: false
             Show Trail: false
             Value: true
-          world:
+          sgr532/usb_cam_link:
             Alpha: 1
             Show Axes: false
             Show Trail: false
@@ -235,6 +237,103 @@ Visualization Manager:
         Show Robot Visual: true
       Value: true
       Velocity_Scaling_Factor: 1
+    - Class: rviz/Image
+      Enabled: true
+      Image Topic: /cap120/found_blocs
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: Image
+      Normalize Range: true
+      Queue Size: 2
+      Transport Hint: raw
+      Unreliable: false
+      Value: true
+    - Class: rviz/TF
+      Enabled: true
+      Filter (blacklist): ""
+      Filter (whitelist): ""
+      Frame Timeout: 15
+      Frames:
+        All Enabled: false
+        camera_aligned_depth_to_color_frame:
+          Value: false
+        camera_color_frame:
+          Value: false
+        camera_color_optical_frame:
+          Value: false
+        camera_depth_frame:
+          Value: false
+        camera_depth_optical_frame:
+          Value: false
+        camera_link:
+          Value: false
+        green_bloc_0:
+          Value: false
+        sgr532/ar_tag_link:
+          Value: false
+        sgr532/base_link:
+          Value: false
+        sgr532/link1:
+          Value: false
+        sgr532/link2:
+          Value: false
+        sgr532/link3:
+          Value: false
+        sgr532/link4:
+          Value: false
+        sgr532/link5:
+          Value: false
+        sgr532/link6:
+          Value: false
+        sgr532/link_grasping_frame:
+          Value: true
+        sgr532/link_gripper_left:
+          Value: false
+        sgr532/link_gripper_right:
+          Value: false
+        sgr532/usb_cam_link:
+          Value: false
+        world:
+          Value: false
+      Marker Alpha: 1
+      Marker Scale: 0.4000000059604645
+      Name: TF
+      Show Arrows: true
+      Show Axes: true
+      Show Names: true
+      Tree:
+        camera_link:
+          camera_aligned_depth_to_color_frame:
+            camera_color_optical_frame:
+              {}
+          camera_color_frame:
+            {}
+          camera_depth_frame:
+            camera_depth_optical_frame:
+              {}
+        world:
+          green_bloc_0:
+            {}
+          sgr532/base_link:
+            sgr532/link1:
+              sgr532/link2:
+                sgr532/link3:
+                  sgr532/link4:
+                    sgr532/link5:
+                      sgr532/link6:
+                        sgr532/ar_tag_link:
+                          {}
+                        sgr532/link_grasping_frame:
+                          {}
+                        sgr532/link_gripper_left:
+                          {}
+                        sgr532/link_gripper_right:
+                          {}
+                        sgr532/usb_cam_link:
+                          {}
+      Update Interval: 0
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -251,7 +350,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 2
+      Distance: 1.70967698097229
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -267,9 +366,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.5
+      Pitch: 0.2549997568130493
       Target Frame: sgr532/base_link
-      Yaw: -0.6232355833053589
+      Yaw: 5.62994384765625
     Saved: ~
 Window Geometry:
   Displays:
@@ -279,13 +378,15 @@ Window Geometry:
     collapsed: false
   Hide Left Dock: false
   Hide Right Dock: false
+  Image:
+    collapsed: false
   MotionPlanning:
     collapsed: false
   MotionPlanning - Trajectory Slider:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd0000000100000000000001f3000002eafc0200000007fb000000100044006900730070006c006100790073010000003d0000015c000000c900fffffffb0000000800480065006c00700000000342000000bb0000006e00fffffffb0000000a00560069006500770073000000010c000000a4000000a400fffffffb0000000c00430061006d00650072006100000002ff000001610000000000000000fb0000001e004d006f00740069006f006e00200050006c0061006e006e0069006e00670100000374000001890000000000000000fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000001600000016fb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e0067010000019f000001880000017d00ffffff0000035f000002ea00000001000000020000000100000002fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd000000010000000000000156000002eafc0200000008fb000000100044006900730070006c006100790073010000003d000001a4000000c900fffffffb0000000800480065006c00700000000342000000bb0000006e00fffffffb0000000a00560069006500770073000000010c000000a4000000a400fffffffb0000000c00430061006d00650072006100000002ff000001610000000000000000fb0000001e004d006f00740069006f006e00200050006c0061006e006e0069006e00670100000374000001890000000000000000fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c006900640065007200000001bf000000410000001600000016fb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e0067000000010c0000017d0000017d00fffffffb0000000a0049006d00610067006501000001e7000001400000001600ffffff000003fc000002ea00000001000000020000000100000002fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Views:
     collapsed: false
   Width: 1368
-  X: 72
-  Y: 27
+  X: 137
+  Y: 51
