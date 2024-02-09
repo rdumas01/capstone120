@@ -2,8 +2,11 @@
 <launch> 	
   <arg name="robot_name"                default="sgr532"/>
   <!--sagittarius_moveit-->
-  <include file="$(find sagittarius_moveit)/launch/demo.launch">
+  <include file="$(find sagittarius_moveit)/launch/demo_true.launch">
       <arg name="robot_name"    value="$(arg robot_name)"/>
+  </include>
+
+  <include file="$(find realsense2_camera)/launch/rs_camera.launch">
   </include>
 
   <!--drow start node-->
@@ -12,6 +15,9 @@
 
   <!--start script-->
   <node pkg="moving" type="new_terminal_send_topic.sh" name="send_topic">
+  </node>
+
+  <node pkg="vision" type="find_bloc_noDepth.py" name="find_bloc">
   </node>
 
 </launch>

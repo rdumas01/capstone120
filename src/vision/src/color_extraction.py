@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 import rospy
 from cv_bridge import CvBridge
+from math import atan2
 
 from sensor_msgs.msg import Image
 
@@ -43,7 +44,7 @@ def find_object(image, display=False, publish=False, print_res=False):
     # Convert to hsv colorspace
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
-
+    result = None
     if display or publish:
         # Copy the image to not alter it when tracing the bounding boxes
         result = img.copy()
@@ -52,7 +53,7 @@ def find_object(image, display=False, publish=False, print_res=False):
 
     for color in colors:
 
-        found_objects[color['name']] = dict()
+        found_objects[color['name']] = []
 
         # Lower bound and upper bound for color 
         lower_bound = color['hsv'][0]    
@@ -93,31 +94,35 @@ def find_object(image, display=False, publish=False, print_res=False):
         for cntr in contours:
 
             if cv2.contourArea(cntr) >= min_area:
+                found_object = dict()
 
                 xc, yc, w, h = cv2.boundingRect(cntr)
                 xc = xc + w//2
                 yc = yc + h//2
 
-                found_objects[color['name']]['center'] = (xc,yc)
+                found_object['center'] = (xc,yc)
 
                 if print_res:
                     print('Found {} object at ({}, {})'.format(color['name'], xc, yc))
 
+                rect : cv2.RotatedRect = cv2.minAreaRect(cntr)
+                box = cv2.boxPoints(rect)
+                box = np.int0(box)
+                angle = get_orientation(box, result)
+                found_object['yaw'] = angle
 
                 if display or publish:
-                    x1 = xc - w//2
-                    x2 = xc + w//2
-                    y1 = yc - h//2
-                    y2 = yc + h//2
-                
                     # Traces a rectangle around each "object":
-                    cv2.rectangle(result, (x1, y1), (x2, y2), colour, thickness)
-                
+                    cv2.drawContours(result, [box], 0, colour, 2)
+                    cv2.putText(result, str(angle*180/np.pi), box[1], cv2.FONT_HERSHEY_SIMPLEX, 0.5, colour, 1, cv2.LINE_AA)
+
                 # Draw mask to get list of pixels
                 cntr_mask = np.zeros(hsv.shape[:2])
                 cv2.drawContours(cntr_mask, [cntr], 0, 255, thickness=-1)
                 pts_in_cntr = np.nonzero(cntr_mask)
-                found_objects[color['name']]['pixels'] = pts_in_cntr
+                found_object['pixels'] = pts_in_cntr
+
+                found_objects[color['name']].append(found_object)
 
     if publish:
         pub = rospy.Publisher(drawn_rect_topic, Image, queue_size=5)
@@ -133,6 +138,40 @@ def find_object(image, display=False, publish=False, print_res=False):
     return found_objects
 
 
+def get_orientation(box, img=None):
+    '''
+    box: 4x2 array containing the coordinates of a box's 4 corners
+    img: the img on which to draw
+    '''
+
+    p1, p2, p3, _ = box
+    center = np.mean(box, 0)
+    
+    c1 = np.linalg.norm(p1-p2)
+    c2 = np.linalg.norm(p2-p3)
+
+    if c1 > c2:
+        major_ax = p1-p2
+        minor_ax = p2-p3
+    else:
+        major_ax = p2-p3
+        minor_ax = p1-p2
+
+    if img is not None:
+        draw_axis(img, center, center + major_ax, (255, 255, 0), 1)
+        draw_axis(img, center, center + minor_ax, (0, 0, 255), 5)
+
+    angle = (-atan2(major_ax[1], major_ax[0]) - np.pi/2) % np.pi
+    if angle >= 6/10 * np.pi:
+        angle -= np.pi
+
+    return angle
+
+
+def draw_axis(img, p_, q_, color, scale):
+    p = list(p_)
+    q = list(q_)
+    cv2.line(img, (int(p[0]), int(p[1])), (int(q[0]), int(q[1])), color, 1, cv2.LINE_AA)
 
 
 def color_def():
@@ -156,7 +195,7 @@ def color_def():
     
     green = {'name' : 'green', \
              'bgr' : (0, 255, 0), \
-             'hsv' : [np.array([36, 60, 100]), np.array([90, 255, 255])]}
+             'hsv' : [np.array([26, 20, 50]), np.array([85, 255, 255])]}
     
     white = {'name' : 'white', \
              'bgr' : (255, 255, 255), \
