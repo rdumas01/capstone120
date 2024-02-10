@@ -87,8 +87,8 @@ def find_object(image, display=False, publish=False, print_res=False):
             colour = color['bgr'] # Frame color
             thickness = 2 # Frame thickness
 
-        min_area = area_ratio * cv2.contourArea(contours[0])
-
+        if len(contours) > 0:
+            min_area = area_ratio * cv2.contourArea(contours[0])
 
 
         for cntr in contours:
