@@ -1,0 +1,28 @@
+<launch>
+
+	
+
+    <arg name="marker_size"          default="4.5" />
+    <arg name="max_new_marker_error" default="0.08" />
+    <arg name="max_track_error"      default="0.2" />
+
+    <arg name="cam_image_topic"      default="/camera/color/image_raw" />
+    <arg name="cam_info_topic"       default="/camera/color/camera_info" />
+    <arg name="output_frame"         default="/camera_color_frame" />
+
+    <node name="ar_track_alvar" pkg="ar_track_alvar" type="individualMarkersNoKinect" respawn="false" output="screen">
+		<param name="marker_size"           type="double" value="$(arg marker_size)" />
+		<param name="max_new_marker_error"  type="double" value="$(arg max_new_marker_error)" />
+		<param name="max_track_error"       type="double" value="$(arg max_track_error)" />
+		<param name="output_frame"          type="string" value="$(arg output_frame)" />
+
+		<remap from="camera_image"  to="$(arg cam_image_topic)" />
+		<remap from="camera_info"   to="$(arg cam_info_topic)" />
+	</node>
+	
+	<node pkg="tf" type="static_transform_publisher" name="ar_marker_frame" args="-0.001 -0.253 0 1.5707 0 0 ar_marker_4 world 100"/>
+	
+	<node pkg="tf" type="tf_echo" name="camera_pose_calibration" args="sgr532/link6 camera_color_optical_frame" output="screen"/>
+	
+	
+</launch>
