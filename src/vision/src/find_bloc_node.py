@@ -78,7 +78,7 @@ class find_bloc_node:
             
             if len(objects.keys()) > 0:
 
-                obj = objects[[key for key in objects.keys()][0]]
+                obj = objects[[key for key in objects.keys()][0]][0]
                 ox, oy = obj['center']
                 depth = np.mean(np.array([depth_img[x, y] for (x, y) in zip(obj['pixels'][0], obj['pixels'][1])]))
                 
