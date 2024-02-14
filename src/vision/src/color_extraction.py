@@ -26,7 +26,8 @@ def find_object(image, display=False, publish=False, print_res=False):
 
     # Fixed variables
     drawn_rect_topic = "/cap120/found_blocs"    # Publishing topic
-    area_ratio = 0.5                            # Defines which contours to keep based on contour area
+    area_ratio = 0.3                            # Defines which contours to keep based on contour area
+    threshold_area = 5000                       # Minimum area for a blob to be considered valid
 
     ## Color Definitions
     colors = color_def()
@@ -88,12 +89,12 @@ def find_object(image, display=False, publish=False, print_res=False):
             thickness = 2 # Frame thickness
 
         if len(contours) > 0:
-            min_area = area_ratio * cv2.contourArea(contours[0])
+            min_area = max(threshold_area, area_ratio * cv2.contourArea(contours[0]))
 
 
         for cntr in contours:
 
-            if cv2.contourArea(cntr) >= min_area:
+            if cv2.contourArea(cntr) >= min_area :
                 found_object = dict()
 
                 xc, yc, w, h = cv2.boundingRect(cntr)
@@ -187,15 +188,15 @@ def color_def():
 
     yellow = {'name' : 'yellow', \
               'bgr' : (107, 183, 189), \
-              'hsv' : [np.array([20, 80, 80]), np.array([30, 255, 255])]}
+              'hsv' : [np.array([20, 80, 60]), np.array([50, 255, 255])]}
     
     blue = {'name' : 'blue', \
             'bgr' : (255, 0, 0), \
-            'hsv' : [np.array([90, 70, 100]), np.array([128, 255, 255])]}
+            'hsv' : [np.array([85, 85, 30]), np.array([110, 255, 255])]}
     
     green = {'name' : 'green', \
              'bgr' : (0, 255, 0), \
-             'hsv' : [np.array([36, 60, 100]), np.array([85, 255, 255])]}
+             'hsv' : [np.array([65, 70, 30]), np.array([85, 255, 250])]}
     
     white = {'name' : 'white', \
              'bgr' : (255, 255, 255), \
@@ -203,12 +204,11 @@ def color_def():
     
     red = {'name' : 'red', \
             'bgr' : (0, 0, 255), \
-            'hsv' : [[np.array([180, 150, 100]), np.array([255, 255, 255])], \
-                     [np.array([0, 150, 100]), np.array([10, 255, 255])]]}
+            'hsv' : [[np.array([180, 150, 80]), np.array([255, 255, 255])], \
+                     [np.array([0, 150, 80]), np.array([10, 255, 255])]]}
                     # Red has 2 ranges on both ends of HSV spectrum
 
     colors = [yellow, blue, green, red]
-    colors = [green]
 
     return colors
 
