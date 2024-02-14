@@ -30,3 +30,15 @@ It should output the spatial transformation between the sgr532/link6 and usb_cam
 
 Next, edit the file **sgr532.urdf.xacro** in folder [capstone120_ws]/src/sagittarius_pcks/sagittarius_descriptions/urdf/ and go to **line 659**. Replace the xyz and rpy (radian) values with the ones displayed by the cam_pose_calibration.launch file.
 
+
+## Calibrating the Camera exposure and white balance
+
+Unfortunately, this has to be done manually through the Realsense Viewer **every time the camera is plugged/unplugged**. In a new terminal, run:
+```
+realsense-viewer
+```
+A window should appear. In the left menu, enable RGB Camera (using the red switch on the right) and expand it (using the white triangle on the left). Then, uncheck the "Enable Auto Exposure" option and expand "Controls". Next to the "Exposure" line, click on the pen icon on the right. You can now click on the value under "Exposure" and set it to 130.
+
+To set the white balance, place a sheet of paper within view of the camera and wait for a couple of seconds so it adjusts. Then, uncheck the "Enable Auto White Balance" option to lock the white balance.
+
+You can now close the Realsense Viewer.
