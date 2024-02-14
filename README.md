@@ -33,7 +33,9 @@ Next, edit the file **sgr532.urdf.xacro** in folder [capstone120_ws]/src/sagitta
 
 ## Calibrating the Camera exposure and white balance
 
-Unfortunately, this has to be done manually through the Realsense Viewer **every time the camera is plugged/unplugged**. In a new terminal, run:
+Unfortunately, this has to be done manually through the Realsense Viewer **every time the camera is plugged/unplugged**.
+
+In a new terminal, run:
 ```
 realsense-viewer
 ```
