@@ -3,7 +3,7 @@
 
 import rospy, sys
 import moveit_commander
-from moveit_commander import MoveGroupCommander
+from moveit_commander import MoveGroupCommander, PlanningSceneInterface
 from geometry_msgs.msg import Pose, PoseStamped
 from copy import deepcopy
 from std_msgs.msg import String
@@ -16,6 +16,7 @@ from compute_trajectory import gen_trajectory
 
 class move_arm_node:
 
+    box_num  = 0
     # define test startin_point
     bloc_1 = Pose()
     bloc_1.position.x = 0.220
@@ -24,17 +25,76 @@ class move_arm_node:
 
     bloc_2 = Pose()
     bloc_2.position.x = 0.220
-    bloc_2.position.y = -0.222
+    bloc_2.position.y = 0.150
     bloc_2.position.z = 0.109
+
+    bloc_3 = Pose()
+    bloc_3.position.x = 0.220
+    bloc_3.position.y = 0.222
+    bloc_3.position.z = 0.109
+
+    bloc_4 = Pose()
+    bloc_4.position.x = 0.220
+    bloc_4.position.y = 0.150
+    bloc_4.position.z = 0.109
+
+    bloc_5 = Pose()
+    bloc_5.position.x = 0.220
+    bloc_5.position.y = 0.222
+    bloc_5.position.z = 0.109
+
+    bloc_6 = Pose()
+    bloc_6.position.x = 0.220
+    bloc_6.position.y = 0.150
+    bloc_6.position.z = 0.109
+
+    # place_pose_1 = Pose()
+    # place_pose_1.position.x = 0.425
+    # place_pose_1.position.y = 0.007
+    # place_pose_1.position.z = 0.270
+    # place_pose_1.orientation.x = -0.500
+    # place_pose_1.orientation.y = 0.500
+    # place_pose_1.orientation.z = -0.500
+    # place_pose_1.orientation.w = 0.500
+
+    place_pose_1 = Pose()
+    place_pose_1.position.x = 0.200
+    place_pose_1.position.y = 0.200
+    place_pose_1.position.z = -0.108
+
+    place_pose_2 = Pose()
+    place_pose_2.position.x = 0.200
+    place_pose_2.position.y = 0.000
+    place_pose_2.position.z = -0.108
+
+    place_pose_3 = Pose()
+    place_pose_3.position.x = 0.200
+    place_pose_3.position.y = -0.200
+    place_pose_3.position.z = -0.108
+
+    place_pose_4 = Pose()
+    place_pose_4.position.x = 0.300
+    place_pose_4.position.y = 0.200
+    place_pose_4.position.z = -0.108
+
+    place_pose_5 = Pose()
+    place_pose_5.position.x = 0.300
+    place_pose_5.position.y = 0.000
+    place_pose_5.position.z = -0.108
+
+    place_pose_6 = Pose()
+    place_pose_6.position.x = 0.300
+    place_pose_6.position.y = -0.200
+    place_pose_6.position.z = -0.108
 
     default_pose = Pose()
     default_pose.position.x = 0.200
     default_pose.position.y = -0.100
-    default_pose.position.z = -0.108
+    default_pose.position.z = -0.108 
+    # -0.108 -= 0.01
 
-
-    bloc_list = [[bloc_1], [bloc_2]]
-
+    bloc_list = [[bloc_1], [bloc_2], [bloc_3], [bloc_4], [bloc_5], [bloc_6]]
+    place_list = [[place_pose_1], [place_pose_2], [place_pose_3], [place_pose_4], [place_pose_5], [place_pose_6]]
 
     def __init__(self):
 
@@ -87,19 +147,6 @@ class move_arm_node:
         self.execute_action = self.actions_dict() # Dictionary of all possible actions
 
         rospy.loginfo('Entering main loop...')
-        # stay_in_loop = True
-        # while stay_in_loop:
-
-        #     rospy.loginfo('Waiting for action...')
-        #     action = rospy.wait_for_message('/cap120/next_action', String)
-        #     stay_in_loop = self.execute_action[action.data]()
-
-        # test two sequential actions (pickup)
-        # self.pickup_bloc(self.bloc_1)
-        # Add move to vertical offset point
-        # Add camera look again
-        # Then go grab
-        # Add gripper check: if grabbed: drop_bloc, else: open gripper and go back to home position
         
         self.lookout()
         self.drop()
@@ -108,16 +155,17 @@ class move_arm_node:
         
             grabbed = False
 
-            while not grabbed:
+            # while not grabbed:
                 
-                self.drop()
-                self.pickup_bloc(self.bloc_list[i][0])
-                rospy.sleep(1)
-                # if grabbed, return True, then exit while loop to execute drop_bloc
-                grabbed = self.check_closure()
-                rospy.sleep(1)
+            #     self.drop()
+            #     self.pickup_bloc(self.bloc_list[i][0])
+            #     rospy.sleep(1)
+            #     # if grabbed, return True, then exit while loop to execute drop_bloc
+            #     grabbed = self.check_closure()
+            #     rospy.sleep(1)
 
-            self.drop_bloc(self.default_pose)
+            self.drop_bloc(self.place_list[i][0])
+            self.add_box(self.place_list[i][0])
             rospy.sleep(1)
 
         self.sleep()
@@ -232,7 +280,7 @@ class move_arm_node:
             # target_pose.position.x = 0.200
             # target_pose.position.y = -0.100
             # target_pose.position.z = 0.142
-            target_pose.position.z = -0.08
+            # target_pose.position.z = -0.08
             points_list = gen_trajectory(target_pose)
 
             rospy.sleep(.1)
@@ -341,7 +389,88 @@ class move_arm_node:
 
         return False
 
+    '''
+    add a box in the scene
+    pos_orientation: x,y,z,w = 0 0 0 1
+    size = 0.03, 0.03, 0.03 (actual block size has 3 cm sides)
+    '''
+    
+    def add_box(self, desired_pose = Pose(), size = [0.03, 0.03, 0.03]):
+        #rospy.init_node('add_collision_object_py', anonymous=True)
 
+        scene = PlanningSceneInterface()
+
+        box_name = "box {}".format(self.box_num)
+        # scene.remove_world_object(box_name)
+        self.box_num += 1
+
+        box_pose = PoseStamped()
+        box_pose.header.frame_id = self.arm.get_planning_frame()
+        width, length, height = size
+        box_pose.pose.orientation.w = desired_pose.orientation.w
+        box_pose.pose.position.x = desired_pose.position.x  # Position of the box
+        box_pose.pose.position.y = desired_pose.position.y
+        box_pose.pose.position.z = desired_pose.position.z
+
+        scene.add_box(box_name, box_pose, size=(width, length, height))  # Size of the box
+
+        rospy.sleep(1)  # Wait for the above operations to be completed
+
+    def drop_goal(self, target_pose = default_pose):
+        max_attempts = 2  
+        attempt = 0
+        found_plan = None  
+        planners = ['RRTstar','RRTConnect', 'RRT', ]  # bring more choice for solver
+
+        while attempt < max_attempts and not found_plan:
+            for planner in planners:  
+                try:
+                    # set plannar
+                    self.arm.set_planner_id(planner)  # try different planner
+                    self.arm.set_planning_time(5)  # 
+                    # target_pose.position.z = -0.08
+                    # if success
+                    # target_pose = rospy.wait_for_message("/cap120/drop_goal", Pose, timeout=5)
+
+                    #self.arm.set_pose_target(target_pose_stamped)
+                    self.arm.set_joint_value_target(target_pose, True)
+                    #Just replace "group.set_pose_target(pose_goal)" line with "group.set_joint_value_target(pose_goal, True)" 
+                    plan = self.arm.plan()
+
+                    # # 获取规划框架的名称
+                    # planning_frame = self.arm.get_planning_frame()
+
+                    # # 使用 rospy.loginfo() 打印规划框架的名称
+                    # rospy.loginfo("The planning frame is: %s", planning_frame)
+
+                    # check if success
+                    if plan and plan[0] and len(plan[1].joint_trajectory.points) > 0:
+                        found_plan = plan[1]  
+                        rospy.loginfo(f"{planner} found a plan!")
+                        break  
+                    else:
+                        rospy.loginfo(f"{planner} failed, trying next planner.")
+                except rospy.ROSException as e:
+                    rospy.logerr("ROS error: {}".format(e))
+                    break  
+                except Exception as e:
+                    rospy.logerr(f"Error in the planning with {planner}: {e}")
+                    break  
+
+            attempt += 1
+
+        if found_plan:
+            rospy.loginfo("Executing found plan!")
+            self.arm.execute(found_plan) 
+           
+            self.gripper.set_named_target('open')
+            self.gripper.go()
+            rospy.sleep(3)
+        else:
+            rospy.loginfo(f"Couldn't find viable planning in {max_attempts} attempts with different planners.")
+
+        self.base_position()
+        return found_plan  
 
 
 if __name__ == "__main__":
