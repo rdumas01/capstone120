@@ -16,7 +16,7 @@ from compute_trajectory import gen_trajectory
 
 class move_arm_node:
 
-    box_num  = 0
+    
     # define test startin_point
     bloc_1 = Pose()
     bloc_1.position.x = 0.220
@@ -98,6 +98,17 @@ class move_arm_node:
 
     def __init__(self):
 
+        #######################################
+        # initialize box number
+        self.box_num  = 0
+
+        # define a dictionary to store box shapes dimensions
+        self.shapes = {
+            'box': [0.03, 0.03, 0.03],
+            'rectangular': [0.09, 0.03, 0.03]
+        }
+        #######################################
+
         rospy.loginfo('move_arm has started')
 
         # 初始化move_group的API
@@ -165,7 +176,7 @@ class move_arm_node:
             #     rospy.sleep(1)
 
             self.drop_bloc(self.place_list[i][0])
-            self.add_box(self.place_list[i][0])
+            self.add_box(self.place_list[i][0], 'rectangular')
             rospy.sleep(1)
 
         self.sleep()
@@ -395,8 +406,9 @@ class move_arm_node:
     size = 0.03, 0.03, 0.03 (actual block size has 3 cm sides)
     '''
     
-    def add_box(self, desired_pose = Pose(), size = [0.03, 0.03, 0.03]):
+    def add_box(self, desired_pose = Pose(), shape_name = 'box'):
         #rospy.init_node('add_collision_object_py', anonymous=True)
+        size = self.shapes.get(shape_name, self.shapes['box'])
 
         scene = PlanningSceneInterface()
 
@@ -417,7 +429,7 @@ class move_arm_node:
         rospy.sleep(1)  # Wait for the above operations to be completed
 
     def drop_goal(self, target_pose = default_pose):
-        max_attempts = 2  
+        max_attempts = 3  
         attempt = 0
         found_plan = None  
         planners = ['RRTstar','RRTConnect', 'RRT', ]  # bring more choice for solver
@@ -426,22 +438,25 @@ class move_arm_node:
             for planner in planners:  
                 try:
                     # set plannar
+                    
                     self.arm.set_planner_id(planner)  # try different planner
-                    self.arm.set_planning_time(5)  # 
-                    # target_pose.position.z = -0.08
-                    # if success
+                    self.arm.set_planning_time(2)  # 
+
+                    # initialize again to avoid previous action was not done
+                    
+                    self.gripper.set_joint_value_target([-0.007, -0.007])
+                    self.gripper.go()
                     # target_pose = rospy.wait_for_message("/cap120/drop_goal", Pose, timeout=5)
+                    
+                    #target_pose_stamped = PoseStamped()
+                    #target_pose_stamped.header.frame_id = "world"
+                    #target_pose_stamped.header.stamp = rospy.Time.now()
+                    #target_pose_stamped.pose = target_pose
 
                     #self.arm.set_pose_target(target_pose_stamped)
                     self.arm.set_joint_value_target(target_pose, True)
                     #Just replace "group.set_pose_target(pose_goal)" line with "group.set_joint_value_target(pose_goal, True)" 
                     plan = self.arm.plan()
-
-                    # # 获取规划框架的名称
-                    # planning_frame = self.arm.get_planning_frame()
-
-                    # # 使用 rospy.loginfo() 打印规划框架的名称
-                    # rospy.loginfo("The planning frame is: %s", planning_frame)
 
                     # check if success
                     if plan and plan[0] and len(plan[1].joint_trajectory.points) > 0:
@@ -465,7 +480,8 @@ class move_arm_node:
            
             self.gripper.set_named_target('open')
             self.gripper.go()
-            rospy.sleep(3)
+            rospy.sleep(1)
+        
         else:
             rospy.loginfo(f"Couldn't find viable planning in {max_attempts} attempts with different planners.")
 
