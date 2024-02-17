@@ -15,38 +15,41 @@ from compute_trajectory import gen_trajectory
 
 
 class move_arm_node:
+    # define desk height
+    desk_height = 0.085
+    cube_height = 0.035
 
     
     # define test startin_point
     bloc_1 = Pose()
-    bloc_1.position.x = 0.220
+    bloc_1.position.x = 0.150
     bloc_1.position.y = 0.222
-    bloc_1.position.z = 0.109
+    bloc_1.position.z = desk_height
 
     bloc_2 = Pose()
-    bloc_2.position.x = 0.220
+    bloc_2.position.x = 0.150
     bloc_2.position.y = 0.150
-    bloc_2.position.z = 0.109
+    bloc_2.position.z = desk_height
 
     bloc_3 = Pose()
-    bloc_3.position.x = 0.220
-    bloc_3.position.y = 0.222
-    bloc_3.position.z = 0.109
+    bloc_3.position.x = 0.150
+    bloc_3.position.y = 0.150
+    bloc_3.position.z = desk_height
 
     bloc_4 = Pose()
-    bloc_4.position.x = 0.220
+    bloc_4.position.x = 0.150
     bloc_4.position.y = 0.150
-    bloc_4.position.z = 0.109
+    bloc_4.position.z = desk_height
 
     bloc_5 = Pose()
-    bloc_5.position.x = 0.220
-    bloc_5.position.y = 0.222
-    bloc_5.position.z = 0.109
+    bloc_5.position.x = 0.150
+    bloc_5.position.y = 0.150
+    bloc_5.position.z = desk_height
 
     bloc_6 = Pose()
-    bloc_6.position.x = 0.220
+    bloc_6.position.x = 0.150
     bloc_6.position.y = 0.150
-    bloc_6.position.z = 0.109
+    bloc_6.position.z = desk_height
 
     # place_pose_1 = Pose()
     # place_pose_1.position.x = 0.425
@@ -60,41 +63,48 @@ class move_arm_node:
     place_pose_1 = Pose()
     place_pose_1.position.x = 0.200
     place_pose_1.position.y = 0.200
-    place_pose_1.position.z = -0.108
+    place_pose_1.position.z = desk_height
+    # place_pose_1.orientation.x = 0.000
+    # place_pose_1.orientation.y = 0.707
+    # place_pose_1.orientation.z = 0.000
+    # place_pose_1.orientation.w = 0.707
 
     place_pose_2 = Pose()
     place_pose_2.position.x = 0.200
     place_pose_2.position.y = 0.000
-    place_pose_2.position.z = -0.108
+    place_pose_2.position.z = desk_height
 
     place_pose_3 = Pose()
     place_pose_3.position.x = 0.200
     place_pose_3.position.y = -0.200
-    place_pose_3.position.z = -0.108
+    place_pose_3.position.z = desk_height
 
     place_pose_4 = Pose()
-    place_pose_4.position.x = 0.300
+    place_pose_4.position.x = 0.200
     place_pose_4.position.y = 0.200
-    place_pose_4.position.z = -0.108
+    place_pose_4.position.z = desk_height + cube_height
 
     place_pose_5 = Pose()
-    place_pose_5.position.x = 0.300
+    place_pose_5.position.x = 0.200
     place_pose_5.position.y = 0.000
-    place_pose_5.position.z = -0.108
+    place_pose_5.position.z = desk_height + cube_height
 
     place_pose_6 = Pose()
-    place_pose_6.position.x = 0.300
+    place_pose_6.position.x = 0.200
     place_pose_6.position.y = -0.200
-    place_pose_6.position.z = -0.108
+    place_pose_6.position.z = desk_height + cube_height
 
     default_pose = Pose()
     default_pose.position.x = 0.200
     default_pose.position.y = -0.100
-    default_pose.position.z = -0.108 
+    default_pose.position.z = 0.003 
     # -0.108 -= 0.01
 
-    bloc_list = [[bloc_1], [bloc_2], [bloc_3], [bloc_4], [bloc_5], [bloc_6]]
-    place_list = [[place_pose_1], [place_pose_2], [place_pose_3], [place_pose_4], [place_pose_5], [place_pose_6]]
+    # bloc_list = [[bloc_1], [bloc_2], [bloc_3], [bloc_4], [bloc_5], [bloc_6]]
+    # place_list = [[place_pose_1], [place_pose_2], [place_pose_3], [place_pose_4], [place_pose_5], [place_pose_6]]
+    bloc_list = [[bloc_1], [bloc_1], [bloc_1], [bloc_1]]
+    place_list = [[place_pose_1], [place_pose_4], [place_pose_5], [place_pose_6]]
+
 
     def __init__(self):
 
@@ -104,10 +114,10 @@ class move_arm_node:
 
         # define a dictionary to store box shapes dimensions
         self.shapes = {
-            'box': [0.03, 0.03, 0.03],
+            'box': [0.01, 0.01, 0.01],
             'rectangular': [0.09, 0.03, 0.03]
         }
-        #######################################
+        ################################target_pose.position.z = target_pose.position.z-0.15#######
 
         rospy.loginfo('move_arm has started')
 
@@ -127,8 +137,8 @@ class move_arm_node:
         self.gripper.set_pose_reference_frame(reference_frame) #夹爪
                 
         # 设置位置(单位：米)和姿态（单位：弧度）的允许误差
-        self.arm.set_goal_position_tolerance(0.01)
-        self.arm.set_goal_orientation_tolerance(0.01)
+        self.arm.set_goal_position_tolerance(0.004)
+        self.arm.set_goal_orientation_tolerance(0.004)
         self.arm.set_goal_joint_tolerance(0.02)
 
         # 设置允许的最大速度和加速度
@@ -166,17 +176,18 @@ class move_arm_node:
         
             grabbed = False
 
-            # while not grabbed:
+            while not grabbed:
                 
-            #     self.drop()
-            #     self.pickup_bloc(self.bloc_list[i][0])
-            #     rospy.sleep(1)
-            #     # if grabbed, return True, then exit while loop to execute drop_bloc
-            #     grabbed = self.check_closure()
-            #     rospy.sleep(1)
+                self.drop()
 
-            self.drop_bloc(self.place_list[i][0])
-            self.add_box(self.place_list[i][0], 'rectangular')
+                self.pickup_from_above(self.bloc_list[i][0])
+                rospy.sleep(1)
+                # if grabbed, return True, then exit while loop to execute drop_bloc
+                grabbed = self.check_closure()
+                rospy.sleep(1)
+
+            self.drop_goal(self.place_list[i][0])
+            self.add_box(self.place_list[i][0])
             rospy.sleep(1)
 
         self.sleep()
@@ -280,6 +291,94 @@ class move_arm_node:
         self.gripper.set_named_target('open')
         self.gripper.go()
 
+        return True
+    
+    def pickup_from_above(self, target_pose = default_pose):
+        max_attempts = 3  
+        attempt = 0
+        found_plan = None  
+        planners = ['RRTstar','RRTConnect', 'RRT', ]  # bring more choice for solver
+
+        while attempt < max_attempts and not found_plan:
+            for planner in planners:  
+                try:
+                    # set plannar
+                    
+                    self.arm.set_planner_id(planner)  # try different planner
+                    self.arm.set_planning_time(2)  # 
+
+                    # initialize again to avoid previous action was not done
+                    
+                    # self.gripper.set_joint_value_target([-0.007, -0.007])
+                    # self.gripper.go()
+                    # target_pose = rospy.wait_for_message("/cap120/drop_goal", Pose, timeout=5)
+                    
+                    #target_pose_stamped = PoseStamped()
+                    #target_pose_stamped.header.frame_id = "world"
+                    #target_pose_stamped.header.stamp = rospy.Time.now()
+                    #target_pose_stamped.pose = target_pose
+
+                    #self.arm.set_pose_target(target_pose_stamped)
+                    target_pose.position.z += 0.15
+                    target_pose.orientation.w = 0.707
+                    target_pose.orientation.x = 0
+                    target_pose.orientation.y = 0.707
+                    target_pose.orientation.z = 0
+                    self.arm.set_joint_value_target(target_pose, True)
+                    
+                    #Just replace "group.set_pose_target(pose_goal)" line with "group.set_joint_value_target(pose_goal, True)" 
+                    plan = self.arm.plan()
+
+                    # check if success
+                    if plan and plan[0] and len(plan[1].joint_trajectory.points) > 0:
+                        found_plan = plan[1]  
+                        rospy.loginfo(f"{planner} found a plan!")
+                        break  
+                    else:
+                        rospy.loginfo(f"{planner} failed, trying next planner.")
+                except rospy.ROSException as e:
+                    rospy.logerr("ROS error: {}".format(e))
+                    break  
+                except Exception as e:
+                    rospy.logerr(f"Error in the planning with {planner}: {e}")
+                    break  
+
+            attempt += 1
+
+        if found_plan:
+            rospy.loginfo("Executing found plan!")
+            self.arm.execute(found_plan) 
+
+            try:
+                
+                target_pose.position.z -= 0.15
+                
+                self.arm.set_joint_value_target(target_pose, True)
+                self.arm.go()
+                #if not self.arm.go():
+                #   self.collision_check = 1
+                
+                
+
+            
+                self.gripper.set_named_target('close')
+                self.gripper.go()
+                rospy.sleep(1)
+                target_pose.position.z += 0.15
+                self.arm.set_joint_value_target(target_pose, True)
+                self.arm.go()
+                target_pose.position.z -= 0.15
+
+                
+                rospy.sleep(1)
+            except Exception as e:
+                rospy.logerr(e)
+                return False
+        
+        else:
+            rospy.loginfo(f"Couldn't find viable planning in {max_attempts} attempts with different planners.")
+
+        self.base_position()
         return True
     
     def drop_bloc(self, target_pose = default_pose):
@@ -441,11 +540,10 @@ class move_arm_node:
                     
                     self.arm.set_planner_id(planner)  # try different planner
                     self.arm.set_planning_time(2)  # 
-
                     # initialize again to avoid previous action was not done
                     
-                    self.gripper.set_joint_value_target([-0.007, -0.007])
-                    self.gripper.go()
+                    # self.gripper.set_joint_value_target([-0.007, -0.007])
+                    # self.gripper.go()
                     # target_pose = rospy.wait_for_message("/cap120/drop_goal", Pose, timeout=5)
                     
                     #target_pose_stamped = PoseStamped()
@@ -454,7 +552,13 @@ class move_arm_node:
                     #target_pose_stamped.pose = target_pose
 
                     #self.arm.set_pose_target(target_pose_stamped)
+                    target_pose.position.z += 0.15
+                    target_pose.orientation.w = 0.707
+                    target_pose.orientation.x = 0
+                    target_pose.orientation.y = 0.707
+                    target_pose.orientation.z = 0
                     self.arm.set_joint_value_target(target_pose, True)
+                    
                     #Just replace "group.set_pose_target(pose_goal)" line with "group.set_joint_value_target(pose_goal, True)" 
                     plan = self.arm.plan()
 
@@ -477,16 +581,35 @@ class move_arm_node:
         if found_plan:
             rospy.loginfo("Executing found plan!")
             self.arm.execute(found_plan) 
-           
-            self.gripper.set_named_target('open')
-            self.gripper.go()
-            rospy.sleep(1)
+
+            try:
+                target_pose.position.z -= 0.15
+                self.arm.set_joint_value_target(target_pose, True)
+                self.arm.go()
+                #if not self.arm.go():
+                #   self.collision_check = 1
+                
+                
+
+                rospy.sleep(1)
+                self.gripper.set_named_target('open')
+                self.gripper.go()
+                target_pose.position.z += 0.15
+                rospy.sleep(1)
+                self.arm.set_joint_value_target(target_pose, True)
+                self.arm.go()
+                target_pose.position.z -= 0.15
+
+                rospy.sleep(1)
+            except Exception as e:
+                rospy.logerr(e)
+                return False
         
         else:
             rospy.loginfo(f"Couldn't find viable planning in {max_attempts} attempts with different planners.")
 
         self.base_position()
-        return found_plan  
+        return True
 
 
 if __name__ == "__main__":
