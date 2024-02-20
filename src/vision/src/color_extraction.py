@@ -109,13 +109,14 @@ def find_object(image, display=False, publish=False, print_res=False):
                 rect : cv2.RotatedRect = cv2.minAreaRect(cntr)
                 box = cv2.boxPoints(rect)
                 box = np.int0(box)
-                angle = get_orientation(box, result)
+                angle, bloc_type = get_orientation_and_type(box, result)
                 found_object['yaw'] = angle
+                found_object['type'] = bloc_type
 
                 if display or publish:
                     # Traces a rectangle around each "object":
                     cv2.drawContours(result, [box], 0, colour, 2)
-                    cv2.putText(result, str(angle*180/np.pi), box[1], cv2.FONT_HERSHEY_SIMPLEX, 0.5, colour, 1, cv2.LINE_AA)
+                    cv2.putText(result, bloc_type+'; '+str(angle*180/np.pi), box[1], cv2.FONT_HERSHEY_SIMPLEX, 0.5, colour, 1, cv2.LINE_AA)
 
                 # Draw mask to get list of pixels
                 cntr_mask = np.zeros(hsv.shape[:2])
@@ -139,7 +140,7 @@ def find_object(image, display=False, publish=False, print_res=False):
     return found_objects
 
 
-def get_orientation(box, img=None):
+def get_orientation_and_type(box, img=None):
     '''
     box: 4x2 array containing the coordinates of a box's 4 corners
     img: the img on which to draw
@@ -157,6 +158,15 @@ def get_orientation(box, img=None):
     else:
         major_ax = p2-p3
         minor_ax = p1-p2
+    
+    ratio = max(c1, c2) / min(c1, c2)
+    if ratio >= 1.5:                        # TODO: adjust threshold
+        if ratio >= 2.5:                    # TODO: adjust threshold
+            bloc_type = 'long'
+        else:
+            bloc_type = 'rect'
+    else:
+        bloc_type = 'cube'
 
     if img is not None:
         draw_axis(img, center, center + major_ax, (255, 255, 0), 1)
@@ -166,7 +176,7 @@ def get_orientation(box, img=None):
     if angle >= 6/10 * np.pi:
         angle -= np.pi
 
-    return angle
+    return angle, bloc_type
 
 
 def draw_axis(img, p_, q_, color, scale):
