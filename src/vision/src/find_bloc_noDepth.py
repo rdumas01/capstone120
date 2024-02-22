@@ -82,7 +82,7 @@ class find_bloc_node:
             rgb_img = self.bridge.imgmsg_to_cv2(rgb_img, desired_encoding="bgr8")
 
             objects = find_object(rgb_img, publish=True)
-            
+            return
             if len(objects.keys()) > 0:
 
                 colors = [key for key in objects.keys()]
@@ -134,7 +134,7 @@ class find_bloc_node:
                         self.tfbr.sendTransform((obj_coords.position.x, obj_coords.position.y, obj_coords.position.z),
                                     tf.transformations.quaternion_from_euler(0, np.pi/2, camera_yaw + obj['yaw']),
                                     rospy.Time.now(),
-                                    str(col) + "_bloc_" + str(i),
+                                    str(col) + obj['shape'] + "_bloc_" + str(i),
                                     self.origin_frame)
                         
                         pub = rospy.Publisher(self.obj_coords_topic, Pose, queue_size=1)

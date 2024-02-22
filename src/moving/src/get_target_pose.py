@@ -33,15 +33,17 @@ def get_target_pose(color : str, shape : str = None):
 
     # ============== FRAME SELECTION ===============
 
-    color_frames = [frame for frame in frames_list if str(color) in frame]   # Get frames containing desired color
-    # print(color_frames)
+    selected_frames = [frame for frame in frames_list if str(color) in frame]   # Get frames containing desired color
+
+    if shape is not None:
+        selected_frames = [frame for frame in selected_frames if shape in frame]    # Get frames containing desired shape
 
     # ==============================================
 
-    if len(color_frames) > 0:
+    if len(selected_frames) > 0:
         
         try:
-            target_trans : Transform = tfBuffer.lookup_transform(origin_frame, color_frames[0], rospy.Time()).transform
+            target_trans : Transform = tfBuffer.lookup_transform(origin_frame, selected_frames[0], rospy.Time()).transform
             target_pose = Pose()
             target_pose.position = target_trans.translation
             target_pose.orientation = target_trans.rotation

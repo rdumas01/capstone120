@@ -26,8 +26,8 @@ def find_object(image, display=False, publish=False, print_res=False):
 
     # Fixed variables
     drawn_rect_topic = "/cap120/found_blocs"    # Publishing topic
-    area_ratio = 0.3                            # Defines which contours to keep based on contour area
-    threshold_area = 5000                       # Minimum area for a blob to be considered valid
+    area_ratio = 0.2                            # Defines which contours to keep based on contour area
+    threshold_area = 4000                       # Minimum area for a blob to be considered valid
 
     ## Color Definitions
     colors = color_def()
@@ -94,7 +94,7 @@ def find_object(image, display=False, publish=False, print_res=False):
 
         for cntr in contours:
 
-            if cv2.contourArea(cntr) >= min_area :
+            if cv2.contourArea(cntr) >= min_area:
                 found_object = dict()
 
                 xc, yc, w, h = cv2.boundingRect(cntr)
@@ -109,14 +109,15 @@ def find_object(image, display=False, publish=False, print_res=False):
                 rect : cv2.RotatedRect = cv2.minAreaRect(cntr)
                 box = cv2.boxPoints(rect)
                 box = np.int0(box)
-                angle, bloc_type = get_orientation_and_type(box, result)
+                angle, bloc_shape = get_orientation_and_shape(box, result)
                 found_object['yaw'] = angle
-                found_object['type'] = bloc_type
+                found_object['shape'] = bloc_shape
 
                 if display or publish:
                     # Traces a rectangle around each "object":
                     cv2.drawContours(result, [box], 0, colour, 2)
-                    cv2.putText(result, bloc_type+'; '+str(angle*180/np.pi), box[1], cv2.FONT_HERSHEY_SIMPLEX, 0.5, colour, 1, cv2.LINE_AA)
+                    # cv2.putText(result, str(angle*180/np.pi), box[1], cv2.FONT_HERSHEY_SIMPLEX, 0.5, colour, 1, cv2.LINE_AA)
+                    cv2.putText(result, bloc_shape, box[1], cv2.FONT_HERSHEY_SIMPLEX, 0.8, colour, 1, cv2.LINE_AA)
 
                 # Draw mask to get list of pixels
                 cntr_mask = np.zeros(hsv.shape[:2])
@@ -140,7 +141,7 @@ def find_object(image, display=False, publish=False, print_res=False):
     return found_objects
 
 
-def get_orientation_and_type(box, img=None):
+def get_orientation_and_shape(box, img=None):
     '''
     box: 4x2 array containing the coordinates of a box's 4 corners
     img: the img on which to draw
@@ -160,13 +161,13 @@ def get_orientation_and_type(box, img=None):
         minor_ax = p1-p2
     
     ratio = max(c1, c2) / min(c1, c2)
-    if ratio >= 1.5:                        # TODO: adjust threshold
-        if ratio >= 2.5:                    # TODO: adjust threshold
-            bloc_type = 'long'
+    if ratio >= 1.4:                        # TODO: adjust threshold
+        if ratio >= 2.4:                    # TODO: adjust threshold
+            bloc_shape = 'long'
         else:
-            bloc_type = 'rect'
+            bloc_shape = 'rect'
     else:
-        bloc_type = 'cube'
+        bloc_shape = 'cube'
 
     if img is not None:
         draw_axis(img, center, center + major_ax, (255, 255, 0), 1)
@@ -176,7 +177,7 @@ def get_orientation_and_type(box, img=None):
     if angle >= 6/10 * np.pi:
         angle -= np.pi
 
-    return angle, bloc_type
+    return angle, bloc_shape
 
 
 def draw_axis(img, p_, q_, color, scale):
@@ -197,16 +198,16 @@ def color_def():
     '''
 
     yellow = {'name' : 'yellow', \
-              'bgr' : (107, 183, 189), \
-              'hsv' : [np.array([20, 80, 60]), np.array([50, 255, 255])]}
+              'bgr' : (107*1.2, 183*1.2, 189*1.2), \
+              'hsv' : [np.array([20, 60, 60]), np.array([50, 255, 255])]}
     
     blue = {'name' : 'blue', \
             'bgr' : (255, 0, 0), \
-            'hsv' : [np.array([85, 85, 30]), np.array([110, 255, 255])]}
+            'hsv' : [np.array([100, 85, 30]), np.array([110, 255, 255])]}
     
     green = {'name' : 'green', \
              'bgr' : (0, 255, 0), \
-             'hsv' : [np.array([65, 70, 30]), np.array([85, 255, 250])]}
+             'hsv' : [np.array([60, 40, 30]), np.array([90, 255, 250])]}
     
     white = {'name' : 'white', \
              'bgr' : (255, 255, 255), \
@@ -214,8 +215,8 @@ def color_def():
     
     red = {'name' : 'red', \
             'bgr' : (0, 0, 255), \
-            'hsv' : [[np.array([180, 150, 80]), np.array([255, 255, 255])], \
-                     [np.array([0, 150, 80]), np.array([10, 255, 255])]]}
+            'hsv' : [[np.array([170, 150, 90]), np.array([255, 255, 255])], \
+                     [np.array([0, 150, 90]), np.array([15, 255, 255])]]}
                     # Red has 2 ranges on both ends of HSV spectrum
 
     colors = [yellow, blue, green, red]
