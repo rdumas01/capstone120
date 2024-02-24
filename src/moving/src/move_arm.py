@@ -172,16 +172,22 @@ class move_arm_node:
     def look_around(self):
         found = None
         target_offset = 0.00
+        i=1
+
 
         while not found:
+            
+            # self.arm.set_pose_target([0.25, -0.15 + target_offset, 0.220, 0, 1.57, 0])
+            # self.arm.go()
 
-            self.arm.set_pose_target([0.25, -0.15 + target_offset, 0.220, 0, 1.57, 0])
-            self.arm.go()
+            #search near area until it found one (rotate joint1)
+            self.rotate_joint("joint1",i*1.57/8)
+            self.rotate_joint("joint1",-i*1.57/8)
             rospy.sleep(0.1)
             self.arm.stop()
             self.arm.clear_pose_targets()
             target_pose = get_target_pose("green")
-
+            i+=1
             
             if target_pose is not None:
                 return target_pose
@@ -193,9 +199,14 @@ class move_arm_node:
             if target_offset > 0.3:
                 rospy.logwarn("Reached maximum search offset without finding all bricks.")
                 break
+
+            if i > 16:
+                rospy.logwarn("Cannot find a block")
+                break
+            
             
 
-        return [0.250, 0, 0.220, 0, 1.57, 0]
+        return True
 
     
     def constraints_add(self):
@@ -231,6 +242,7 @@ class move_arm_node:
         execute_action = {'pickup' : self.pickup_bloc,
                           'drop' : self.drop,
                           'lookout' : self.lookout,
+                          'lookaround' : self.look_around,
                           'sleep' : self.sleep,
                           'RRTpickup' : self.pickup_by_rrt,
                           'drop_goal':self.drop_goal,
@@ -249,12 +261,25 @@ class move_arm_node:
         Parameters:
         - joint_name: The name of the joint to rotate.
         - angle: The target angle in radians.
+
+        we have 8 joint to use
+
+        joint1 revolute
+        joint2 revolute
+        joint3 revolute
+        joint4 revolute
+        joint5 revolute
+        joint6 revolute
+
+        joint_gripper_left prismatic
+        joint_gripper_right prismatic
+
         """
         # get each joint current position
         joint_positions = self.arm.get_current_joint_values()
         joint_index = self.arm.get_active_joints().index(joint_name)
         joint_positions[joint_index] = angle
-        self.arm.set_joint_value_target(joint_positions)
+        self.arm.set_joint_value_target(joint_positions) #only change that joint
 
         self.arm.go()
         
