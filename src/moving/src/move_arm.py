@@ -241,7 +241,23 @@ class move_arm_node:
         
         return execute_action
     
+    def rotate_pose(self, pose: Pose, angle):
         
+        x = pose.orientation.x
+        y = pose.orientation.y
+        z = pose.orientation.z
+        w = pose.orientation.w
+
+        r, p, y = tf.transformations.euler_from_quaternion([x, y, z, w])
+        y += angle
+
+        new_x, new_y, new_z, new_w = tf.transformations.quaternion_from_euler(r, p, y)
+        pose.orientation.x = new_x
+        pose.orientation.y = new_y
+        pose.orientation.z = new_z
+        pose.orientation.w = new_w
+
+        return pose
 
     def pickup_from_above(self,target_pose: Pose):
         try:    
@@ -252,9 +268,8 @@ class move_arm_node:
             self.gripper.go()
 
             # Step 2: Place gripper above target
-            r, p, y = tf.transformations.euler_from_quaternion(target_pose.orientation)
-            y += np.pi/2
-            target_pose.orientation = tf.transformations.quaternion_from_euler(r, p, y)
+
+            target_pose = self.rotate_pose(target_pose, np.pi/2)
             target_pose.position.z += self.desk_height + self.pickup_offset
             self.arm.set_joint_value_target(target_pose, True)
             self.arm.go()
@@ -263,6 +278,7 @@ class move_arm_node:
             target_pose.position.z -= self.pickup_offset
             self.arm.set_joint_value_target(target_pose, True)
             self.arm.go()
+            rospy.sleep(1)
 
             # Step 4: Close gripper
             self.gripper.set_joint_value_target([-0.027, -0.027])
@@ -270,15 +286,20 @@ class move_arm_node:
             rospy.sleep(3)
 
             #open
-            self.gripper.set_joint_value_target("open")
+            self.gripper.set_named_target("open")
             self.gripper.go()
-            rospy.sleep(3)
+            rospy.sleep(1)
 
             #change orientation and close again
 
+            target_pose = self.rotate_pose(target_pose, -np.pi/2)
+            self.arm.set_joint_value_target(target_pose, True)
+            self.arm.go()
+            rospy.sleep(1)
+
             self.gripper.set_joint_value_target([-0.027, -0.027])
             self.gripper.go()
-            rospy.sleep(3)
+            rospy.sleep(2)
 
             # Step 5: Get back up
             target_pose.position.z += self.desk_height + self.pickup_offset
