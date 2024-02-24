@@ -23,7 +23,8 @@ class move_arm_node:
         # initialize box number
         self.box_num  = 0
         self.collision_check = 0
-        self.desk_height = 0.085
+        self.desk_height = 0.01 # 0.085
+        self.pickup_offset = 0.04
         self.cube_height = 0.03
 
         # define a dictionary to store box shapes dimensions
@@ -57,7 +58,9 @@ class move_arm_node:
         self.arm.set_max_velocity_scaling_factor(0.5)
         
         # 获取终端link的名称
+        # self.arm.set_end_effector_link("sgr532/end_effector")
         self.end_effector_link = self.arm.get_end_effector_link()
+        # rospy.logerr(self.end_effector_link)
 
         # Put arm in initial pose
         self.base_position()
@@ -213,7 +216,7 @@ class move_arm_node:
 
     def base_position(self):
 
-        self.arm.set_pose_target([0.250, 0, 0.220, 0, 1.57, 0])
+        self.arm.set_pose_target([0.250, 0, 0.220 - 0.1137 + 0.0557, 0, 1.57, 0])
         self.arm.go()
         self.arm.stop()
         self.arm.clear_pose_targets()
@@ -240,21 +243,24 @@ class move_arm_node:
     
         
 
-    def pickup_from_above(self,target_pose):
+    def pickup_from_above(self,target_pose: Pose):
         try:    
             #target_pose : Pose = get_target_pose("green")
-            #self.arm.set_planner_id("RRTstar")
+            self.arm.set_planner_id("RRTConnect")
             # Step 1: Open gripper
             self.gripper.set_joint_value_target([0.00, 0.00])
             self.gripper.go()
 
             # Step 2: Place gripper above target
-            target_pose.position.z += self.desk_height + 0.02
+            r, p, y = tf.transformations.euler_from_quaternion(target_pose.orientation)
+            y += np.pi/2
+            target_pose.orientation = tf.transformations.quaternion_from_euler(r, p, y)
+            target_pose.position.z += self.desk_height + self.pickup_offset
             self.arm.set_joint_value_target(target_pose, True)
             self.arm.go()
 
             # Step 3: Lower the gripper to target
-            target_pose.position.z -= 0.02
+            target_pose.position.z -= self.pickup_offset
             self.arm.set_joint_value_target(target_pose, True)
             self.arm.go()
 
@@ -263,8 +269,21 @@ class move_arm_node:
             self.gripper.go()
             rospy.sleep(3)
 
-            # Step 5: Check if object has been grabbed
-            # TODO
+            #open
+            self.gripper.set_joint_value_target("open")
+            self.gripper.go()
+            rospy.sleep(3)
+
+            #change orientation and close again
+
+            self.gripper.set_joint_value_target([-0.027, -0.027])
+            self.gripper.go()
+            rospy.sleep(3)
+
+            # Step 5: Get back up
+            target_pose.position.z += self.desk_height + self.pickup_offset
+            self.arm.set_joint_value_target(target_pose, True)
+            self.arm.go()
 
             # Step 6: Return to base position
             self.base_position()
@@ -454,7 +473,7 @@ class move_arm_node:
                     #target_pose_stamped.pose = target_pose
                     target_pose_copy.position.z += self.desk_height
                     #self.arm.set_pose_target(target_pose_stamped)
-                    target_pose_copy.position.z += 0.02
+                    target_pose_copy.position.z += self.pickup_offset/2
                     target_pose_copy.orientation.w = 0.707
                     target_pose_copy.orientation.x = 0
                     target_pose_copy.orientation.y = 0.707
@@ -485,7 +504,7 @@ class move_arm_node:
             self.arm.execute(found_plan) 
 
             try:
-                target_pose_copy.position.z -= 0.02
+                target_pose_copy.position.z -= self.pickup_offset/2
                 self.arm.set_joint_value_target(target_pose_copy, True)
                 self.arm.go()
                 # if not self.arm.go():
@@ -496,11 +515,11 @@ class move_arm_node:
                 rospy.sleep(.1)
                 self.gripper.set_named_target('open')
                 self.gripper.go()
-                target_pose_copy.position.z += 0.02
+                target_pose_copy.position.z += self.pickup_offset
                 rospy.sleep(.1)
                 self.arm.set_joint_value_target(target_pose, True)
                 self.arm.go()
-                target_pose_copy.position.z -=0.02
+                target_pose_copy.position.z -= self.pickup_offset
                 rospy.sleep(.1)
 
             except Exception as e:
