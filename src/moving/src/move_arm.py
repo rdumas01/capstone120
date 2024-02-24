@@ -237,9 +237,30 @@ class move_arm_node:
                           'pickup_from_above':self.pickup_from_above,
                           'constraints_add' : self.constraints_add,
                           'main2':self.main2,
+                          'rotate_joint':self.rotate_joint,
                           'exit' : self.exit}
         
         return execute_action
+
+    def rotate_joint(self, joint_name: String = "joint6", angle=1.57): #the angle is in radian
+        """
+        Rotate a single joint to a specific angle.
+
+        Parameters:
+        - joint_name: The name of the joint to rotate.
+        - angle: The target angle in radians.
+        """
+        # get each joint current position
+        joint_positions = self.arm.get_current_joint_values()
+        joint_index = self.arm.get_active_joints().index(joint_name)
+        joint_positions[joint_index] = angle
+        self.arm.set_joint_value_target(joint_positions)
+
+        self.arm.go()
+        
+        rospy.sleep(1)  
+
+        return True
     
     def rotate_pose(self, pose: Pose, angle):
         
@@ -272,6 +293,7 @@ class move_arm_node:
             target_pose = self.rotate_pose(target_pose, np.pi/2)
             target_pose.position.z += self.desk_height + self.pickup_offset
             self.arm.set_joint_value_target(target_pose, True)
+            #rotate_joint("joint6",1.57) 
             self.arm.go()
 
             # Step 3: Lower the gripper to target
@@ -294,6 +316,7 @@ class move_arm_node:
 
             target_pose = self.rotate_pose(target_pose, -np.pi/2)
             self.arm.set_joint_value_target(target_pose, True)
+            #rotate_joint("joint6",1.57) 
             self.arm.go()
             rospy.sleep(1)
 
