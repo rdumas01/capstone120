@@ -50,5 +50,5 @@ You can now close the Realsense Viewer.
 
 After everything has been calibrated and the robot is running, open a new terminal and run:
 ```
-rostopic pub /cap120/next_action std_msgs/String main2
+rostopic pub /cap120/next_action std_msgs/String execute_all
 ```
