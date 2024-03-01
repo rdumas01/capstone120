@@ -44,3 +44,11 @@ A window should appear. In the left menu, enable RGB Camera (using the red switc
 To set the white balance, uncheck the "Enable Auto White Balance" option to lock the white balance and set it to 3550.
 
 You can now close the Realsense Viewer.
+
+
+## Launching the main routine
+
+After everything has been calibrated and the robot is running, open a new terminal and run:
+```
+rostopic pub /cap120/next_action std_msgs/String main2
+```
