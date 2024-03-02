@@ -14,6 +14,8 @@ from compute_trajectory import gen_trajectory
 from moveit_msgs.msg import OrientationConstraint, Constraints
 from get_target_pose import get_target_pose
 
+from blueprint_to_coordinates import find_object, build_castle, flatten_layers, create_poses_from_objects
+
 
 class move_arm_node:
 
@@ -97,6 +99,26 @@ class move_arm_node:
             rospy.sleep(1) #pretty important to have a sleep here to make sure the previous action have already be executed
         
         rospy.loginfo('Exiting main loop...')
+    
+    
+    def from_blue_print2(self):
+        '''
+        "find_object" function: Scans a png/jpg image and finds objects and colors. Dimensions are in pixel coordinates
+        "build_castle" function: Outputs sequential list based on x and z coordinate of the objects - objects are differentiated by layers. dimensions are now in "m" unit.
+        "flatten_layers" function : Gets rid of layers and outputs a simple list only
+        "final list" variable: List from multiple images can be combined here
+        "create_poses_from_objects" function: Converts the information obtained into "Pose" format
+        "
+
+        '''
+        found_object_results = find_object('/home/mahirdaihan3534/capstone120/src/moving/src/Blueprint_zero border.png')
+        sequential_blocks = build_castle(found_object_results,pixel_to_m=.029/182, y_offset=0.005)
+        flattened_blocks = flatten_layers(sequential_blocks)
+        final_list=flattened_blocks
+
+        place_list= create_poses_from_objects(final_list)
+
+        return place_list
 
     def from_blue_print(self):
         #place_list = rospy.wait_for_message("/cap120/place_list",Pose, timeout=5)
