@@ -263,7 +263,7 @@ class move_arm_node:
         
         return execute_action
 
-    def rotate_joint(self, joint_name: String = "joint6", angle=np.pi/2): #the angle is in radian
+    def rotate_joint(self, joint_name: String = "joint6", angle=np.pi/2, absolute = True): #the angle is in radian
         """
         Rotate a single joint to a specific angle.
 
@@ -287,12 +287,16 @@ class move_arm_node:
         # get each joint current position
         joint_positions = self.arm.get_current_joint_values()
         joint_index = self.arm.get_active_joints().index(joint_name)
-        joint_positions[joint_index] = angle
+        if absolute:
+            joint_positions[joint_index] = angle
+        else:
+            joint_positions[joint_index] += angle
         self.arm.set_joint_value_target(joint_positions) #only change that joint
 
         
 
         return True
+
     
     
     
@@ -326,7 +330,7 @@ class move_arm_node:
             # Step 1: Open gripper
             self.gripper.set_joint_value_target([0.00, 0.00])
             self.gripper.go()
-            rospy.sleep(1)
+            rospy.sleep(.1)
 
             # Step 2: Place gripper above target
 
@@ -342,12 +346,12 @@ class move_arm_node:
             target_pose.position.z -= self.pickup_offset
             self.arm.set_joint_value_target(target_pose, True)
             self.arm.go()
-            rospy.sleep(1)
+            rospy.sleep(.1)
 
             # Step 4: Close gripper
             self.gripper.set_joint_value_target([-0.027, -0.027])
             self.gripper.go()
-            rospy.sleep(3)
+            rospy.sleep(2)
 
             #open
             self.gripper.set_named_target("open")
@@ -358,11 +362,20 @@ class move_arm_node:
 
             #change orientation and close again
 
-            target_pose = self.rotate_pose(target_pose, -np.pi/2)
-            self.arm.set_joint_value_target(target_pose, True)
-            # self.rotate_joint("joint6",-np.pi/4) 
+            # target_pose = self.rotate_pose(target_pose, -np.pi/2)
+            # self.arm.set_joint_value_target(target_pose, True)
+            joint_positions = self.arm.get_current_joint_values()
+            joint6_index = self.arm.get_active_joints().index('joint6')
+            joint2_index = self.arm.get_active_joints().index('joint2')
+            
+            joint_positions[joint2_index] += 0.05
+            self.arm.set_joint_value_target(joint_positions)
             self.arm.go()
-            rospy.sleep(1)
+
+            joint_positions[joint6_index] += -np.pi/2
+            self.arm.set_joint_value_target(joint_positions)
+            self.arm.go()
+            rospy.sleep(.1)
             #rospy.sleep(1)
 
             self.gripper.set_joint_value_target([-0.027, -0.027])

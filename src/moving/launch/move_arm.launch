@@ -14,9 +14,6 @@
   <node pkg="moving" type="move_arm.py" name="move_arm_node" ns="$(arg robot_name)">
   </node>
 
-  <!-- Create the end-effector frame -->
-  <node pkg="tf" type="static_transform_publisher" name="end_effector_frame" args="0.058 0 0 0 0 0 sgr532/link_grasping_frame sgr532/end_effector 100"/>
-
   <!--start script-->
   <node pkg="moving" type="new_terminal_send_topic.sh" name="send_topic">
   </node>

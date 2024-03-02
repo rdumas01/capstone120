@@ -43,9 +43,9 @@ class logging:
         for joint, angle in zip(names[:-2], positions[:-2]):
             self.pubs[joint].publish(angle)
 
-        transform = self.tfBuffer.lookup_transform("sgr532/link_grasping_frame",
-                                                    "world",
-                                                    rospy.Time()).transform.translation
+        transform = self.tfBuffer.lookup_transform("world",
+                                                   "sgr532/link_grasping_frame",
+                                                   rospy.Time()).transform.translation
         self.pubs['end_effector_x'].publish(transform.x)
         self.pubs['end_effector_y'].publish(transform.y)
         self.pubs['end_effector_z'].publish(transform.z)

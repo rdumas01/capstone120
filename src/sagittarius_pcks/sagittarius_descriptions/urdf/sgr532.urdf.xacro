@@ -654,9 +654,24 @@
     </actuator>
   </transmission>      
 
-  <link name="$(arg robot_name)/usb_cam_link"></link>
+  <link name="$(arg robot_name)/usb_cam_link">
+    <inertial>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <mass
+        value="0.561320558" />
+      <inertia
+        ixx="8.42E-5"
+        ixy="0.0"
+        ixz="0.0"
+        iyy="8.42E-5"
+        iyz="0.0"
+        izz="8.42E-5" />
+    </inertial>
+  </link>
   <joint name="joint_usb_cam_frame" type="fixed">
-    <origin xyz="0.064 0.028 0.102" rpy="-1.534 -0.051 -1.481" />
+    <origin xyz="0.069 0.029 0.114" rpy="-1.745 -0.036 -1.491" />
     <parent link="$(arg robot_name)/link6" />
     <child link="$(arg robot_name)/usb_cam_link" />
     <axis xyz="0 0 0" />

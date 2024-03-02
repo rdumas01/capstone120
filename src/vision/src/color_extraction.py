@@ -176,7 +176,6 @@ def get_orientation_and_shape(box, img=None):
     angle = (-atan2(major_ax[1], major_ax[0]) - np.pi/2) % np.pi
     if angle >= 6/10 * np.pi:
         angle -= np.pi
-    angle += np.pi/2
 
     return angle, bloc_shape
 
