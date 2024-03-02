@@ -1,0 +1,12 @@
+<!--Forward_kinematics demo-->
+<launch> 	
+
+  <!-- Launch logging node -->
+  <node pkg="logging" type="joint_positions.py" name="logging_node" />
+
+  <!-- Plot logs -->
+  <node pkg="rqt_plot" type="rqt_plot" name="joint_plot_node" args="/cap120/logging/joint1_state /cap120/logging/joint2_state /cap120/logging/joint3_state /cap120/logging/joint4_state /cap120/logging/joint5_state /cap120/logging/joint6_state"/>
+  <node pkg="rqt_plot" type="rqt_plot" name="end_eff_plot_node" args="/cap120/logging/end_effector_x /cap120/logging/end_effector_y /cap120/logging/end_effector_z"/>
+
+
+</launch>
