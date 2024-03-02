@@ -2,3 +2,4 @@ build/
 devel/
 *.bag
 __pycache__/
+.vscode/
