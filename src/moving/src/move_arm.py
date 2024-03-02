@@ -25,7 +25,7 @@ class move_arm_node:
         self.collision_check = 0
         self.desk_height = 0.01 # 0.085
         self.pickup_offset = 0.04
-        self.cube_height = 0.03
+        self.cube_height = 0.029
 
         # define a dictionary to store box shapes dimensions
         self.shapes = {
@@ -50,12 +50,12 @@ class move_arm_node:
         self.gripper.set_pose_reference_frame(reference_frame) #夹爪
                 
         # 设置位置(单位：米)和姿态（单位：弧度）的允许误差
-        self.arm.set_goal_position_tolerance(0.001)
-        self.arm.set_goal_orientation_tolerance(0.001)
-        self.arm.set_goal_joint_tolerance(0.001)
+        self.arm.set_goal_position_tolerance(0.0001)
+        self.arm.set_goal_orientation_tolerance(0.0001)
+        self.arm.set_goal_joint_tolerance(0.0001)
         # 设置允许的最大速度和加速度
-        self.arm.set_max_acceleration_scaling_factor(0.5)
-        self.arm.set_max_velocity_scaling_factor(0.5)
+        self.arm.set_max_acceleration_scaling_factor(0.6)
+        self.arm.set_max_velocity_scaling_factor(0.6)
         
         # 获取终端link的名称
         # self.arm.set_end_effector_link("sgr532/end_effector")
@@ -124,14 +124,25 @@ class move_arm_node:
         place_pose_4.position.x = 0.200
         place_pose_4.position.y = 0.200
         place_pose_4.position.z = self.cube_height + 3*self.cube_height
-        place_list = [place_pose_1, place_pose_2, place_pose_3, place_pose_4]
+        
+
+        place_pose_5 = Pose()
+        place_pose_5.position.x = 0.200
+        place_pose_5.position.y = 0.200
+        place_pose_5.position.z = self.cube_height + 4*self.cube_height
+
+        place_pose_6 = Pose()
+        place_pose_6.position.x = 0.200
+        place_pose_6.position.y = 0.200
+        place_pose_6.position.z = self.cube_height + 5*self.cube_height
+        place_list = [place_pose_1, place_pose_2, place_pose_3, place_pose_4, place_pose_5, place_pose_6]
 
         return place_list
 
 
-    def main2(self):
+    def execute_all(self):
         self.place_list = self.from_blue_print()
-
+        
         # total_bricks = len(self.place_list) # will change to length of blueprint, right now our defualt setting is grab four bricks
         # Main loop - waiting for action then execute it
 
@@ -156,9 +167,9 @@ class move_arm_node:
                 # if grabbed, return True, then exit while loop to execute drop_bloc
                 grabbed = self.check_closure()
                 rospy.sleep(.1)
-                ###################################
-
-            self.drop_goal(step)
+                ##################################
+            if target_pose!=None:
+                self.drop_goal(step)
             # if(self.collision_check == 0):
             #     self.add_box(step, 'box')
             #     rospy.sleep(1)
@@ -170,43 +181,41 @@ class move_arm_node:
         rospy.loginfo('Exiting main loop...')
 
     def look_around(self):
-        found = None
-        target_offset = 0.00
-        i=1
+        target_pose = None
+        angle = [1,2,3,4,4,3,2,1]
 
-
-        while not found:
+        for i in range(1,7):
+            if(i == 4):
+                self.rotate_joint("joint2",1.57/7)
+                self.arm.go()
+                rospy.sleep(1)
+                self.rotate_joint("joint3",-1.57/7)
+                self.arm.go()
+                
             
-            # self.arm.set_pose_target([0.25, -0.15 + target_offset, 0.220, 0, 1.57, 0])
-            # self.arm.go()
 
             #search near area until it found one (rotate joint1)
-            self.rotate_joint("joint1",i*1.57/8)
-            self.rotate_joint("joint1",-i*1.57/8)
-            rospy.sleep(0.1)
-            self.arm.stop()
-            self.arm.clear_pose_targets()
+            #self.rotate_joint("joint1",angle[i]*np.pi/8)
+            self.rotate_joint("joint1", angle[i]*0.4884)
+            self.arm.go()
+            
+                    
+            rospy.sleep(.5)  
             target_pose = get_target_pose("green")
+            target_pose_copy = deepcopy(target_pose)  
+            rospy.sleep(0.1)
+            # self.arm.stop()
+            # self.arm.clear_pose_targets()
             i+=1
             
-            if target_pose is not None:
-                return target_pose
-
-            else:
-                target_offset += 0.05
-                rospy.loginfo(f"No brick found at offset {target_offset}.")
-          
-            if target_offset > 0.3:
-                rospy.logwarn("Reached maximum search offset without finding all bricks.")
-                break
-
-            if i > 16:
-                rospy.logwarn("Cannot find a block")
-                break
             
-            
+            if target_pose_copy is not None:
+                return target_pose_copy
 
-        return True
+        rospy.logwarn("Cannot find a block")
+        self.rotate_joint("joint1",0)
+     
+        return None
 
     
     def constraints_add(self):
@@ -248,13 +257,13 @@ class move_arm_node:
                           'drop_goal':self.drop_goal,
                           'pickup_from_above':self.pickup_from_above,
                           'constraints_add' : self.constraints_add,
-                          'main2':self.main2,
+                          'execute_all':self.execute_all,
                           'rotate_joint':self.rotate_joint,
                           'exit' : self.exit}
         
         return execute_action
 
-    def rotate_joint(self, joint_name: String = "joint6", angle=1.57): #the angle is in radian
+    def rotate_joint(self, joint_name: String = "joint6", angle=np.pi/2): #the angle is in radian
         """
         Rotate a single joint to a specific angle.
 
@@ -281,11 +290,12 @@ class move_arm_node:
         joint_positions[joint_index] = angle
         self.arm.set_joint_value_target(joint_positions) #only change that joint
 
-        self.arm.go()
         
-        rospy.sleep(1)  
 
         return True
+    
+    
+    
     
     def rotate_pose(self, pose: Pose, angle):
         
@@ -305,21 +315,28 @@ class move_arm_node:
 
         return pose
 
-    def pickup_from_above(self,target_pose: Pose):
+    def pickup_from_above(self,target_pose: Pose = None):
+        if target_pose is None:
+            self.base_position()
+            rospy.logerr("None is sent to pickup_from_above")
+            return True
         try:    
             #target_pose : Pose = get_target_pose("green")
             self.arm.set_planner_id("RRTConnect")
             # Step 1: Open gripper
             self.gripper.set_joint_value_target([0.00, 0.00])
             self.gripper.go()
+            rospy.sleep(1)
 
             # Step 2: Place gripper above target
 
             target_pose = self.rotate_pose(target_pose, np.pi/2)
             target_pose.position.z += self.desk_height + self.pickup_offset
             self.arm.set_joint_value_target(target_pose, True)
-            #rotate_joint("joint6",1.57) 
+            #self.rotate_joint("joint6",np.pi/2) 
             self.arm.go()
+            
+            #self.arm.go()
 
             # Step 3: Lower the gripper to target
             target_pose.position.z -= self.pickup_offset
@@ -337,13 +354,16 @@ class move_arm_node:
             self.gripper.go()
             rospy.sleep(1)
 
+            
+
             #change orientation and close again
 
             target_pose = self.rotate_pose(target_pose, -np.pi/2)
             self.arm.set_joint_value_target(target_pose, True)
-            #rotate_joint("joint6",1.57) 
+            # self.rotate_joint("joint6",-np.pi/4) 
             self.arm.go()
             rospy.sleep(1)
+            #rospy.sleep(1)
 
             self.gripper.set_joint_value_target([-0.027, -0.027])
             self.gripper.go()
@@ -391,8 +411,7 @@ class move_arm_node:
                     #target_pose_stamped.pose = target_pose
                     target_pose.position.z = self.desk_height
                     #self.arm.set_pose_target(target_pose_stamped)
-                    target_pose.position.z += 0.15
-                    target_pose.orientation.w = 0.707
+                    target_pose.position.z += 0.15 
                     target_pose.orientation.x = 0
                     target_pose.orientation.y = 0.707
                     target_pose.orientation.z = 0
@@ -540,6 +559,7 @@ class move_arm_node:
                     #target_pose_stamped.header.frame_id = "world"
                     #target_pose_stamped.header.stamp = rospy.Time.now()
                     #target_pose_stamped.pose = target_pose
+                    
                     target_pose_copy.position.z += self.desk_height
                     #self.arm.set_pose_target(target_pose_stamped)
                     target_pose_copy.position.z += self.pickup_offset/2
@@ -584,11 +604,11 @@ class move_arm_node:
                 rospy.sleep(.1)
                 self.gripper.set_named_target('open')
                 self.gripper.go()
-                target_pose_copy.position.z += self.pickup_offset
+                target_pose_copy.position.z += self.pickup_offset*2
                 rospy.sleep(.1)
                 self.arm.set_joint_value_target(target_pose, True)
                 self.arm.go()
-                target_pose_copy.position.z -= self.pickup_offset
+                target_pose_copy.position.z -= self.pickup_offset*2
                 rospy.sleep(.1)
 
             except Exception as e:
