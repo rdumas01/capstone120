@@ -221,6 +221,7 @@ def color_def():
                     # Red has 2 ranges on both ends of HSV spectrum
 
     colors = [yellow, blue, green, red]
+    colors = [green]
 
     return colors
 

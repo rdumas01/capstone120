@@ -82,7 +82,7 @@ class find_bloc_node:
             rgb_img = self.bridge.imgmsg_to_cv2(rgb_img, desired_encoding="bgr8")
 
             objects = find_object(rgb_img, publish=True)
-            return
+            
             if len(objects.keys()) > 0:
 
                 colors = [key for key in objects.keys()]

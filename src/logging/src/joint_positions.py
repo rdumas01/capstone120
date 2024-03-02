@@ -31,7 +31,7 @@ class logging:
         self.pubs['end_effector_y'] = rospy.Publisher('/cap120/logging/end_effector_y', Float64, queue_size=10)
         self.pubs['end_effector_z'] = rospy.Publisher('/cap120/logging/end_effector_z', Float64, queue_size=10)
 
-        self.joint_sub = rospy.Subscriber('/sgr532/joint_states', JointState, self.joint_callback)
+        self.joint_sub = rospy.Subscriber('/sgr532/sagittarius_joint_states', JointState, self.joint_callback)
 
         rospy.spin()
 
