@@ -13,8 +13,9 @@ import moveit_msgs
 from compute_trajectory import gen_trajectory
 from moveit_msgs.msg import OrientationConstraint, Constraints
 from get_target_pose import get_target_pose
+import os
 
-from blueprint_to_coordinates import find_object, build_castle, flatten_layers, create_poses_from_objects
+from blueprint_to_coordinates import find_object, build_castle, flatten_layers, create_poses_colors_shape_list
 
 
 class move_arm_node:
@@ -36,30 +37,31 @@ class move_arm_node:
         }
         #######################################
 
-        # 初始化move_group的API
+        # Initialize the API of move_group
         moveit_commander.roscpp_initialize(sys.argv)
 
-        # 初始化需要使用move group控制的机械臂中的arm group
+        # Initialization requires using the move group to control the arm group in the robotic arm
         self.arm = MoveGroupCommander('sagittarius_arm')
         self.gripper = MoveGroupCommander('sagittarius_gripper')
 
-        # 当运动规划失败后，允许重新规划
+        # Allow re-planning after motion planning fails
         self.arm.allow_replanning(True)
         
-        # 设置目标位置所使用的参考坐标系
+        # Set the reference coordinate system used for the target position
         reference_frame = 'world'
         self.arm.set_pose_reference_frame(reference_frame)
         self.gripper.set_pose_reference_frame(reference_frame) #夹爪
                 
-        # 设置位置(单位：米)和姿态（单位：弧度）的允许误差
+        # Set the allowable error for position (unit: meters) and orientation (unit: radians)
         self.arm.set_goal_position_tolerance(0.0001)
         self.arm.set_goal_orientation_tolerance(0.0001)
         self.arm.set_goal_joint_tolerance(0.0001)
-        # 设置允许的最大速度和加速度
+        
+        # Set the allowed maximum speed and acceleration
         self.arm.set_max_acceleration_scaling_factor(0.3)
         self.arm.set_max_velocity_scaling_factor(0.3)
         
-        # 获取终端link的名称
+        # Get the name of the end effector link
         # self.arm.set_end_effector_link("sgr532/end_effector")
         self.end_effector_link = self.arm.get_end_effector_link()
         # rospy.logerr(self.end_effector_link)
@@ -107,18 +109,27 @@ class move_arm_node:
         "build_castle" function: Outputs sequential list based on x and z coordinate of the objects - objects are differentiated by layers. dimensions are now in "m" unit.
         "flatten_layers" function : Gets rid of layers and outputs a simple list only
         "final list" variable: List from multiple images can be combined here
-        "create_poses_from_objects" function: Converts the information obtained into "Pose" format
+        "create_poses_colors_shape_List" function: Converts the information obtained and creates separate list of poses, colors and shape
         "
 
         '''
-        found_object_results = find_object('/home/mahirdaihan3534/capstone120/src/moving/src/Blueprint_zero border.png')
+        # Define the relative path to the blueprint image
+        blueprint_filename = "blueprint_cube_only.png"
+        # Get the directory where the script is located
+        script_dir = os.path.dirname(__file__)
+        # Construct the full path to the blueprint image
+        blueprint_path = os.path.join(script_dir, blueprint_filename)
+
+        # Use the constructed path in the find_object function
+        found_object_results = find_object(blueprint_path)
+        #found_object_results = find_object('/home/mahirdaihan3534/capstone120/src/moving/src/Blueprint_zero border.png')
         sequential_blocks = build_castle(found_object_results,pixel_to_m=.029/182, y_offset=0.005)
         flattened_blocks = flatten_layers(sequential_blocks)
         final_list=flattened_blocks
 
-        place_list= create_poses_from_objects(final_list)
+        pose_list,shape_list,color_list= create_poses_colors_shape_list(final_list)
 
-        return place_list
+        return pose_list, shape_list, color_list
 
     def from_blue_print(self):
         #place_list = rospy.wait_for_message("/cap120/place_list",Pose, timeout=5)
@@ -164,6 +175,7 @@ class move_arm_node:
 
     def execute_all(self):
         self.place_list = self.from_blue_print()
+        #self.place_list, self.shape_list, self.color_list = self.from_blue_print2()
         
         # total_bricks = len(self.place_list) # will change to length of blueprint, right now our defualt setting is grab four bricks
         # Main loop - waiting for action then execute it

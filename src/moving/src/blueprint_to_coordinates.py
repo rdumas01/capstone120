@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 from math import atan2
 from geometry_msgs.msg import Pose
+import os
 
 '''
 User Instruction
@@ -521,16 +522,17 @@ def plot_castle_structure(flattened_blocks):
     ax.set_zlabel('Z axis (m)')
 
     ax.set_title('3D Castle Plot')
-    ax.set_xlim(0.0,0.20)
+    ax.set_xlim(0.150,0.350)
     ax.set_ylim(0.0,0.20)
     ax.set_zlim(0.0,0.20)
     plt.show()
 
 
-def create_poses_from_objects(final_list):
+def create_poses_colors_shape_list(final_list):
     poses = []
+    shapes = []
+    colors = []
     for obj in final_list:
-        # Extract center as position
         place_pose = Pose()
 
         place_pose.position.x = obj['center'][0]
@@ -541,12 +543,17 @@ def create_poses_from_objects(final_list):
         place_pose.orientation.y= obj['quaternion2']
         place_pose.orientation.z= obj['quaternion3']
         place_pose.orientation.w= obj['quaternion4']
-        
-        
+
+        shape = obj['shape']
+        color = obj['color']
+
+          
         # Add the Pose object to the list
         poses.append(place_pose)
+        shapes.append(shape)
+        colors.append(color)
     
-    return poses
+    return poses, shapes, colors
 
 #example_only
 def from_blue_print():
@@ -574,7 +581,16 @@ def from_blue_print():
 if __name__ == '__main__':
 
     #Block Detection- provide image(s) on after another
-    found_object_results = find_object('/home/mahirdaihan3534/capstone120/src/moving/src/Blueprint_zero border.png')
+    # Define the relative path to the blueprint image
+    blueprint_filename = "blueprint_cube_only.png"
+    # Get the directory where the script is located
+    script_dir = os.path.dirname(__file__)
+    # Construct the full path to the blueprint image
+    blueprint_path = os.path.join(script_dir, blueprint_filename)
+
+    # Use the constructed path in the find_object function
+    found_object_results = find_object(blueprint_path)
+    #found_object_results = find_object("./blueprint_cube_only.png")
     #found_object_results2 = find_object('/home/mahirdaihan3534/capstone120/src/moving/src/Blueprint_All Blocks.png')
     #found_object_results3 = find_object('/home/mahirdaihan3534/capstone120/src/moving/src/Blueprint_zero border.png')
 
@@ -611,8 +627,10 @@ if __name__ == '__main__':
     #plot the multi-layered castle structure
     plot_castle_structure(final_list)
 
-    pose_list= create_poses_from_objects(final_list)
-    print(pose_list)
+    pose_list,shape_list,color_list= create_poses_colors_shape_list(final_list)
+    #print(pose_list)
+    print(shape_list)
+    print(color_list)
 
     #l=from_blue_print()
     #print(l)
