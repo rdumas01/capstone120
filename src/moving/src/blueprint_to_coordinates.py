@@ -3,6 +3,7 @@
 import cv2
 import numpy as np
 from math import atan2
+from geometry_msgs.msg import Pose
 
 '''
 User Instruction
@@ -525,36 +526,49 @@ def plot_castle_structure(flattened_blocks):
     ax.set_zlim(0.0,0.20)
     plt.show()
 
-class Pose:
-    def __init__(self, position=None, orientation=None):
-        self.position = position
-        self.orientation = orientation
-
-    def __repr__(self):
-        return f"Position: {self.position}, Orientation: {self.orientation}"
-
 
 def create_poses_from_objects(final_list):
     poses = []
     for obj in final_list:
         # Extract center as position
-        position = {'x': obj['center'][0], 'y': obj['center'][1], 'z': obj['center'][2]}
+        place_pose = Pose()
+
+        place_pose.position.x = obj['center'][0]
+        place_pose.position.y = obj['center'][1]
+        place_pose.position.z = obj['center'][2]
+
+        place_pose.orientation.x= obj['quaternion1']
+        place_pose.orientation.y= obj['quaternion2']
+        place_pose.orientation.z= obj['quaternion3']
+        place_pose.orientation.w= obj['quaternion4']
         
-        # Extract quaternion components as orientation
-        orientation = {
-            'x': obj['quaternion2'],
-            'y': obj['quaternion3'],
-            'z': obj['quaternion4'],
-            'w': obj['quaternion1']
-        }
-        
-        # Create a Pose object
-        pose = Pose(position=position, orientation=orientation)
         
         # Add the Pose object to the list
-        poses.append(pose)
+        poses.append(place_pose)
     
     return poses
+
+#example_only
+def from_blue_print():
+        #place_list = rospy.wait_for_message("/cap120/place_list",Pose, timeout=5)
+        place_pose_1 = Pose()
+        place_pose_1.position.x = 0.200
+        place_pose_1.position.y = 0.200
+        place_pose_1.position.z = 1
+
+        place_pose_2 = Pose()
+        place_pose_2.position.x = 0.200
+        place_pose_2.position.y = 0.200
+        place_pose_2.position.z = 1
+
+        place_pose_3 = Pose()
+        place_pose_3.position.x = 0.200
+        place_pose_3.position.y = 0.200
+        place_pose_3.position.z = 1
+
+        place_list = [place_pose_1, place_pose_2, place_pose_3]
+
+        return place_list
 
 #Execution of all functions
 if __name__ == '__main__':
@@ -599,3 +613,6 @@ if __name__ == '__main__':
 
     pose_list= create_poses_from_objects(final_list)
     print(pose_list)
+
+    #l=from_blue_print()
+    #print(l)
