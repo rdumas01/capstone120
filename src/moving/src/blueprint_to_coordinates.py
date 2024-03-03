@@ -237,10 +237,10 @@ def determine_shape(width, height, depth):
             str: The determined shape of the object.
         """
         shapes = {
-            'Cube': [.029, .029, .029],
-            'Rectangle': [.059, .029, .014],
-            'Long': [.089, .029, .014],
-            'Thick': [.059, .029, .029]
+            'cube': [.029, .029, .029],
+            'rect': [.059, .029, .014],
+            'long': [.089, .029, .014],
+            'thick': [.059, .029, .029]
         }
         tolerance = .004
 
@@ -529,9 +529,8 @@ def plot_castle_structure(flattened_blocks):
 
 
 def create_poses_colors_shape_list(final_list):
-    poses = []
-    shapes = []
-    colors = []
+    poses_colors_shape = []
+    
     for obj in final_list:
         place_pose = Pose()
 
@@ -546,14 +545,13 @@ def create_poses_colors_shape_list(final_list):
 
         shape = obj['shape']
         color = obj['color']
-
-          
-        # Add the Pose object to the list
-        poses.append(place_pose)
-        shapes.append(shape)
-        colors.append(color)
+        
+        # Combine place_pose, shape, and color into a tuple and add it to the poses list
+        info = (place_pose, shape, color)
+        poses_colors_shape.append(info)
     
-    return poses, shapes, colors
+    return poses_colors_shape
+
 
 #example_only
 def from_blue_print():
@@ -627,10 +625,14 @@ if __name__ == '__main__':
     #plot the multi-layered castle structure
     plot_castle_structure(final_list)
 
-    pose_list,shape_list,color_list= create_poses_colors_shape_list(final_list)
-    #print(pose_list)
-    print(shape_list)
-    print(color_list)
 
+    poses_colors_shape = create_poses_colors_shape_list(final_list)
+    #print(poses_colors_shape)
+
+    #for item in poses_colors_shape:
+        #pose, shape, color = item
+        #print(pose)
+        #print(shape)
+        #print(color)
     #l=from_blue_print()
     #print(l)

@@ -127,9 +127,11 @@ class move_arm_node:
         flattened_blocks = flatten_layers(sequential_blocks)
         final_list=flattened_blocks
 
-        pose_list,shape_list,color_list= create_poses_colors_shape_list(final_list)
+        #pose_list,shape_list,color_list
+        poses_colors_shape = create_poses_colors_shape_list(final_list)
 
-        return pose_list, shape_list, color_list
+        #return pose_list, shape_list, color_list
+        return poses_colors_shape
 
     def from_blue_print(self):
         #place_list = rospy.wait_for_message("/cap120/place_list",Pose, timeout=5)
@@ -175,7 +177,7 @@ class move_arm_node:
 
     def execute_all(self):
         self.place_list = self.from_blue_print()
-        #self.place_list, self.shape_list, self.color_list = self.from_blue_print2()
+        #self.poses_shape_colors=self.from_blue_print2()
         
         # total_bricks = len(self.place_list) # will change to length of blueprint, right now our defualt setting is grab four bricks
         # Main loop - waiting for action then execute it
@@ -214,6 +216,45 @@ class move_arm_node:
 
         rospy.loginfo('Exiting main loop...')
 
+    
+    def execute_all2(self):
+    # Use from_blue_print2 to get poses, shapes, and colors
+        poses_shapes_colors = self.from_blue_print2()
+
+        rospy.loginfo('Entering main loop...')
+
+        # Prepare the robot arm and gripper
+        self.lookout()
+        self.drop()
+
+    # Iterate over the list of poses, shapes, and colors
+        for item in poses_shapes_colors:
+            pose, shape, color = item  # Unpack the tuple
+
+            grabbed = False
+            while not grabbed:
+                #if you are testing in simulation, you need to comment out this section 
+                ################################### 
+                target_pose = self.look_around2(color=color, shape=shape)
+                self.drop()
+                self.pickup_from_above(target_pose)
+                rospy.sleep(.1)
+
+                # if grabbed, return True, then exit while loop to execute drop_bloc
+                grabbed = self.check_closure()
+                rospy.sleep(.1)
+                ##################################
+            if target_pose !=None:
+                self.drop_goal(pose)
+            # if(self.collision_check == 0):
+            #     self.add_box(step, 'box')
+            #     rospy.sleep(1)
+
+
+        self.sleep()
+
+        rospy.loginfo('Exiting main loop...')
+
     def look_around(self):
         target_pose = None
         angle = [1,2,3,4,4,3,2,1]
@@ -236,6 +277,45 @@ class move_arm_node:
                     
             rospy.sleep(.5)  
             target_pose = get_target_pose("green")
+            target_pose_copy = deepcopy(target_pose)  
+            rospy.sleep(0.1)
+            # self.arm.stop()
+            # self.arm.clear_pose_targets()
+            i+=1
+            
+            
+            if target_pose_copy is not None:
+                return target_pose_copy
+
+        rospy.logwarn("Cannot find a block")
+        self.rotate_joint("joint1",0)
+     
+        return None
+    
+    def look_around2(self, color=None, shape=None):
+        target_pose = None
+        angle = [1,2,3,4,4,3,2,1]
+
+        for i in range(1,7):
+            if(i == 4):
+                self.rotate_joint("joint2",1.57/7)
+                self.arm.go()
+                rospy.sleep(1)
+                self.rotate_joint("joint3",-1.57/7)
+                self.arm.go()
+                
+            
+
+            #search near area until it found one (rotate joint1)
+            #self.rotate_joint("joint1",angle[i]*np.pi/8)
+            self.rotate_joint("joint1", angle[i]*0.4884)
+            self.arm.go()
+            
+                    
+            rospy.sleep(.5)  
+            #target_pose = get_target_pose("green")
+            target_pose = get_target_pose (color=color, shape=shape)
+
             target_pose_copy = deepcopy(target_pose)  
             rospy.sleep(0.1)
             # self.arm.stop()
