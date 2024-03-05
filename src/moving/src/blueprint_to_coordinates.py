@@ -19,7 +19,7 @@ User Instruction
 
 '''
 
-def find_object(image_path, display=True, publish=False, print_res=False):
+def find_object(image_path, display=False, publish=False, print_res=False):
     '''
     Scans an image to find colored object and returns their coordinates.
 

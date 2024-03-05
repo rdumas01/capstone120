@@ -15,7 +15,7 @@ from moveit_msgs.msg import OrientationConstraint, Constraints
 from get_target_pose import get_target_pose
 import os
 
-from blueprint_to_coordinates import find_object, build_castle, flatten_layers, create_poses_colors_shape_list
+from blueprint_to_coordinates import find_object, build_castle, flatten_layers, create_poses_colors_shape_list, plot_castle_structure
 
 
 class move_arm_node:
@@ -123,12 +123,13 @@ class move_arm_node:
         # Use the constructed path in the find_object function
         found_object_results = find_object(blueprint_path)
         #found_object_results = find_object('/home/mahirdaihan3534/capstone120/src/moving/src/Blueprint_zero border.png')
-        sequential_blocks = build_castle(found_object_results,pixel_to_m=.029/182, y_offset=0.005)
+        sequential_blocks = build_castle(found_object_results,pixel_to_m=.029/182, y_offset=0.150)
         flattened_blocks = flatten_layers(sequential_blocks)
         final_list=flattened_blocks
 
         #pose_list,shape_list,color_list
         poses_colors_shape = create_poses_colors_shape_list(final_list)
+        #plot_castle_structure(final_list)
 
         #return pose_list, shape_list, color_list
         return poses_colors_shape
@@ -219,7 +220,7 @@ class move_arm_node:
     
     def execute_all2(self):
     # Use from_blue_print2 to get poses, shapes, and colors
-        poses_shapes_colors = self.from_blue_print2()
+        self.poses_shapes_colors = self.from_blue_print2()
 
         rospy.loginfo('Entering main loop...')
 
@@ -228,7 +229,7 @@ class move_arm_node:
         self.drop()
 
     # Iterate over the list of poses, shapes, and colors
-        for item in poses_shapes_colors:
+        for item in self.poses_shapes_colors:
             pose, shape, color = item  # Unpack the tuple
 
             grabbed = False
@@ -292,7 +293,7 @@ class move_arm_node:
      
         return None
     
-    def look_around2(self, color=None, shape=None):
+    def look_around2(self, color : str = None, shape : str = None):
         target_pose = None
         angle = [1,2,3,4,4,3,2,1]
 
@@ -314,7 +315,7 @@ class move_arm_node:
                     
             rospy.sleep(.5)  
             #target_pose = get_target_pose("green")
-            target_pose = get_target_pose (color=color, shape=shape)
+            target_pose = get_target_pose (color, shape)
 
             target_pose_copy = deepcopy(target_pose)  
             rospy.sleep(0.1)
@@ -361,17 +362,19 @@ class move_arm_node:
 
 
     def actions_dict(self):
-        
+        #both execute_all2 and look_around2 are placeholders and will eventually replace execute_all and look_around
         execute_action = {'pickup' : self.pickup_bloc,
                           'drop' : self.drop,
                           'lookout' : self.lookout,
                           'lookaround' : self.look_around,
+                          'lookaround2' : self.look_around2,
                           'sleep' : self.sleep,
                           'RRTpickup' : self.pickup_by_rrt,
                           'drop_goal':self.drop_goal,
                           'pickup_from_above':self.pickup_from_above,
                           'constraints_add' : self.constraints_add,
                           'execute_all':self.execute_all,
+                          'execute_all2':self.execute_all2,
                           'rotate_joint':self.rotate_joint,
                           'exit' : self.exit}
         
@@ -410,9 +413,6 @@ class move_arm_node:
         
 
         return True
-
-    
-    
     
     
     def rotate_pose(self, pose: Pose, angle):
