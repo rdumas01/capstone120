@@ -656,7 +656,7 @@
 
   <link name="$(arg robot_name)/usb_cam_link"></link>
   <joint name="joint_usb_cam_frame" type="fixed">
-    <origin xyz="0.062 0.026 0.106" rpy="-1.572 -0.047 -1.453" />
+    <origin xyz="0.065 0.04 0.104" rpy="-1.513 -0.038 -1.546" />
     <parent link="$(arg robot_name)/link6" />
     <child link="$(arg robot_name)/usb_cam_link" />
     <axis xyz="0 0 0" />
