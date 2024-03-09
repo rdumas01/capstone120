@@ -10,6 +10,8 @@
   <include file="$(find realsense2_camera)/launch/rs_camera.launch">
   </include>
 
+  <node pkg="tf" type="static_transform_publisher" name="camera_frame_pos" args="0 0 0 0 0 0 sgr532/usb_cam_link camera_link 100"/>
+
   <!--drow start node-->
   <node pkg="moving" type="move_arm.py" name="move_arm_node" ns="$(arg robot_name)">
   </node>

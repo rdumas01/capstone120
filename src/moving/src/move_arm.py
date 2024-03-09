@@ -7,7 +7,7 @@ from moveit_commander import MoveGroupCommander, PlanningSceneInterface
 from geometry_msgs.msg import Pose, PoseStamped
 from copy import deepcopy
 from std_msgs.msg import String
-import tf
+import tf, tf2_ros
 import numpy as np
 import moveit_msgs
 from compute_trajectory import gen_trajectory
@@ -58,9 +58,11 @@ class move_arm_node:
         self.arm.set_goal_joint_tolerance(0.0001)
         
         # Set the allowed maximum speed and acceleration
-        self.arm.set_max_acceleration_scaling_factor(0.3)
-        self.arm.set_max_velocity_scaling_factor(0.3)
-        
+        self.arm.set_max_acceleration_scaling_factor(0.8)
+        self.arm.set_max_velocity_scaling_factor(0.9)
+
+        #set the total planning attempts
+        self.arm.set_num_planning_attempts(10)
         # Get the name of the end effector link
         # self.arm.set_end_effector_link("sgr532/end_effector")
         self.end_effector_link = self.arm.get_end_effector_link()
@@ -98,7 +100,7 @@ class move_arm_node:
                 stay_in_loop = self.execute_action[action.data]()
             else:
                 rospy.loginfo(f"Received invalid action '{action.data}'. Please send a valid action.")
-            rospy.sleep(1) #pretty important to have a sleep here to make sure the previous action have already be executed
+            rospy.sleep(0.3) #pretty important to have a sleep here to make sure the previous action have already be executed
         
         rospy.loginfo('Exiting main loop...')
     
@@ -129,8 +131,8 @@ class move_arm_node:
 
         #pose_list,shape_list,color_list
         poses_colors_shape = create_poses_colors_shape_list(final_list)
-        #plot_castle_structure(final_list)
-
+        plot_castle_structure(final_list)
+        # rospy.logerr(poses_colors_shape)
         #return pose_list, shape_list, color_list
         return poses_colors_shape
 
@@ -203,7 +205,7 @@ class move_arm_node:
                 rospy.sleep(.1)
                 # if grabbed, return True, then exit while loop to execute drop_bloc
                 grabbed = self.check_closure()
-                rospy.sleep(.1)
+                rospy.sleep(1)
                 ##################################
             if target_pose!=None:
                 self.drop_goal(step)
@@ -221,7 +223,6 @@ class move_arm_node:
     def execute_all2(self):
     # Use from_blue_print2 to get poses, shapes, and colors
         self.poses_shapes_colors = self.from_blue_print2()
-
         rospy.loginfo('Entering main loop...')
 
         # Prepare the robot arm and gripper
@@ -243,7 +244,7 @@ class move_arm_node:
 
                 # if grabbed, return True, then exit while loop to execute drop_bloc
                 grabbed = self.check_closure()
-                rospy.sleep(.1)
+                rospy.sleep(.5)
                 ##################################
             if target_pose !=None:
                 self.drop_goal(pose)
@@ -264,7 +265,7 @@ class move_arm_node:
             if(i == 4):
                 self.rotate_joint("joint2",1.57/7)
                 self.arm.go()
-                rospy.sleep(1)
+                rospy.sleep(.1)
                 self.rotate_joint("joint3",-1.57/7)
                 self.arm.go()
                 
@@ -296,24 +297,27 @@ class move_arm_node:
     def look_around2(self, color : str = None, shape : str = None):
         target_pose = None
         angle = [1,2,3,4,4,3,2,1]
+        found = False
+        i = 0
 
-        for i in range(1,7):
+        while not found:
             if(i == 4):
                 self.rotate_joint("joint2",1.57/7)
                 self.arm.go()
-                rospy.sleep(1)
+                rospy.sleep(.1)
                 self.rotate_joint("joint3",-1.57/7)
                 self.arm.go()
-                
             
-
+            if(i%8 == 0 and i!=0):
+                self.base_position()
+                
             #search near area until it found one (rotate joint1)
             #self.rotate_joint("joint1",angle[i]*np.pi/8)
-            self.rotate_joint("joint1", angle[i]*0.4884)
+            self.rotate_joint("joint1", angle[i%8]*0.4884)
             self.arm.go()
             
                     
-            rospy.sleep(.5)  
+            rospy.sleep(.1)  
             #target_pose = get_target_pose("green")
             target_pose = get_target_pose (color, shape)
 
@@ -357,7 +361,7 @@ class move_arm_node:
         self.arm.clear_pose_targets()
         self.target_pose_base = self.arm.get_current_pose()
 
-        rospy.sleep(2)
+        rospy.sleep(.5)
     
 
 
@@ -486,7 +490,7 @@ class move_arm_node:
             self.arm.set_joint_value_target(joint_positions)
             self.arm.go()
 
-            joint_positions[joint6_index] += -np.pi/2
+            joint_positions[joint6_index] -= np.pi/2
             self.arm.set_joint_value_target(joint_positions)
             self.arm.go()
             rospy.sleep(.1)
@@ -667,14 +671,14 @@ class move_arm_node:
         max_attempts = 3  
         attempt = 0
         found_plan = None  
-        planners = ['RRTstar','RRTConnect', 'RRT', ]  # bring more choice for solver
+        planners = ['"RRTConnectkConfigDefault"','RRTstar','RRTConnect', 'RRT', ]  # bring more choice for solver
         while attempt < max_attempts and not found_plan:
             for planner in planners:  
                 try:
                     # set plannar
                     target_pose_copy = target_pose
                     self.arm.set_planner_id(planner)  # try different planner
-                    self.arm.set_planning_time(1)  # 
+                    self.arm.set_planning_time(0.5)  # 
 
                     # initialize again to avoid previous action was not done
                     
@@ -836,6 +840,8 @@ if __name__ == "__main__":
 
     try:
         # 初始化ROS节点
+
+        
         rospy.init_node('move_arm_node', anonymous=True)
 
         rospy.wait_for_message("/start_topic", String)
