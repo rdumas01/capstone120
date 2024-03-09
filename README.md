@@ -41,7 +41,7 @@ realsense-viewer
 ```
 A window should appear. In the left menu, enable RGB Camera (using the red switch on the right) and expand it (using the white triangle on the left). Then, uncheck the "Enable Auto Exposure" option and expand "Controls". Next to the "Exposure" line, click on the pen icon on the right. You can now click on the value under "Exposure" and set it to 130.
 
-To set the white balance, uncheck the "Enable Auto White Balance" option to lock the white balance and set it to 3550.
+To set the white balance, uncheck the "Enable Auto White Balance" option to lock the white balance and set it to 3790.
 
 You can now close the Realsense Viewer.
 
