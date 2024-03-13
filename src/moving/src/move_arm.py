@@ -116,7 +116,8 @@ class move_arm_node:
 
         '''
         # Define the relative path to the blueprint image
-        blueprint_filename = "blueprint_cube_only.png"
+        #blueprint_filename = "blueprint_cube_only.png"
+        blueprint_filename = "blueprint_cube_rect.png"
         # Get the directory where the script is located
         script_dir = os.path.dirname(__file__)
         # Construct the full path to the blueprint image
@@ -124,8 +125,10 @@ class move_arm_node:
 
         # Use the constructed path in the find_object function
         found_object_results = find_object(blueprint_path)
-        #found_object_results = find_object('/home/mahirdaihan3534/capstone120/src/moving/src/Blueprint_zero border.png')
-        sequential_blocks = build_castle(found_object_results,pixel_to_m=.029/182, y_offset=0.150)
+        
+        ## Very important - for the "cube_only", use pixel_to_m = .029/144. For "cube_rect", use pixel_to_m = .029/144
+        #sequential_blocks = build_castle(found_object_results,pixel_to_m=.029/182, y_offset=0.150)
+        sequential_blocks = build_castle(found_object_results,pixel_to_m=.029/144, y_offset=0.150)
         flattened_blocks = flatten_layers(sequential_blocks)
         final_list=flattened_blocks
 

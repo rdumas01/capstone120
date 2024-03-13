@@ -19,7 +19,7 @@ User Instruction
 
 '''
 
-def find_object(image_path, display=False, publish=False, print_res=False):
+def find_object(image_path, display=True, publish=False, print_res=False):
     '''
     Scans an image to find colored object and returns their coordinates.
 
@@ -240,7 +240,7 @@ def determine_shape(width, height, depth):
             'cube': [.029, .029, .029],
             'rect': [.059, .029, .014],
             'long': [.089, .029, .014],
-            'thick': [.059, .029, .029]
+            'rect': [.059, .029, .029]
         }
         tolerance = .004
 
@@ -580,7 +580,7 @@ if __name__ == '__main__':
 
     #Block Detection- provide image(s) on after another
     # Define the relative path to the blueprint image
-    blueprint_filename = "blueprint_cube_only.png"
+    blueprint_filename = "blueprint_cube_rect.png"
     # Get the directory where the script is located
     script_dir = os.path.dirname(__file__)
     # Construct the full path to the blueprint image
@@ -593,11 +593,11 @@ if __name__ == '__main__':
     #found_object_results3 = find_object('/home/mahirdaihan3534/capstone120/src/moving/src/Blueprint_zero border.png')
 
     #Srting the blocks based on x and z coordinates- also adding y-coordinate
-    sequential_blocks = build_castle(found_object_results,pixel_to_m=.029/182, y_offset=0.155)
+    sequential_blocks = build_castle(found_object_results,pixel_to_m=.029/144, y_offset=0.155)
     #sequential_blocks2 = build_castle(found_object_results2,pixel_to_m=.029/175, y_offset=0.080)
     #sequential_blocks3 = build_castle(found_object_results3,pixel_to_m=.029/182, y_offset=0.005)
 
-    #print(sequential_blocks2)
+    #print(sequential_blocks)
     
     #You can perform stability analysis any two sequential layers (e.g. Layer 2 on Layer 1, Layer 3 on Layer 2, Layer 4 on Layer 3 etc.)
     #layer_2_blocks = sequential_blocks['Layer 2']
@@ -620,7 +620,7 @@ if __name__ == '__main__':
     #final_list=flattened_blocks + flattened_blocks2 + flattened_blocks3
     final_list=flattened_blocks
 
-    #print(final_list)
+    print(final_list)
 
     #plot the multi-layered castle structure
     plot_castle_structure(final_list)
