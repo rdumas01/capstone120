@@ -6,6 +6,11 @@ from math import atan2
 from geometry_msgs.msg import Pose
 import os
 
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+import numpy as np
+from math import sin, cos #,radians
+
 '''
 User Instruction
 1. Include the full image path in "find_object" function or you will get an error
@@ -35,7 +40,7 @@ def find_object(image_path, display=True, publish=False, print_res=False):
     '''
 
     # Fixed variables
-    area_ratio = .1  # Defines which contours to keep based on contour area
+    area_ratio = .001  # Defines which contours to keep based on contour area
 
     ## Color Definitions
     colors = color_def()
@@ -46,7 +51,7 @@ def find_object(image_path, display=True, publish=False, print_res=False):
     img=cv2.flip(img,1) #flip image horizontally
 
     # Define kernel size for noise removal
-    #kernel = np.ones((7, 7), np.uint8)
+    kernel = np.ones((7, 7), np.uint8)
 
     # Convert to hsv colorspace
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
@@ -80,8 +85,8 @@ def find_object(image_path, display=True, publish=False, print_res=False):
             mask = cv2.bitwise_or(mask, mask2)
 
         # Remove unnecessary noise from mask
-        #mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-        #mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
 
         # Find contours from the mask
         contours, _ = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -95,34 +100,59 @@ def find_object(image_path, display=True, publish=False, print_res=False):
             if cv2.contourArea(cntr) >= min_area:
                 found_object = dict()
 
-                xc, zc, w, h = cv2.boundingRect(cntr)
-                xc = xc + w // 2
-                zc = zc + h // 2
+                # Determine if the object geometry is rectangular or crcular
 
-                found_object['center'] = (xc, zc)
-                found_object['width'] = w
-                found_object['height'] = h
+                epsilon = .018 * cv2.arcLength(cntr, True)
+                approx = cv2.approxPolyDP(cntr, epsilon, True) #approx is a list of vertices of detected object
+                #length=len(approx)
+                #print(length)
 
-                #if print_res:
-                    #print('Found {} object at ({}, {})'.format(color['name'], xc, zc))
+                if len(approx) == 4: #4 vertices = quadrilateral
+                    found_object['geometry']='quad'
+                    xc, zc, w, h = cv2.boundingRect(cntr)
+                    xc = xc + w // 2
+                    zc = zc + h // 2
 
-                rect = cv2.minAreaRect(cntr)
-                box = cv2.boxPoints(rect)
-                box = np.int0(box)
-                angle = get_orientation(box, result)
-                found_object['roll'] = 0 #manually set. Always zero
-                found_object['pitch'] = 0
-                #found_object['pitch'] = angle # Will replace with this line once the pitch angle is calculated properly. Should be zero.
-                found_object['yaw'] = 0 #this needs to be manually set
+                    found_object['center'] = (xc, zc)
+                    found_object['width'] = w
+                    found_object['height'] = h
+
+                    #if print_res:
+                        #print('Found {} object at ({}, {})'.format(color['name'], xc, zc))
+
+                    rect = cv2.minAreaRect(cntr)
+                    box = cv2.boxPoints(rect)
+                    box = np.int0(box)
+                    angle = get_orientation(box, result) #don't really need this- just for visual
+
+                
+                elif len(approx)== 3: #3 vertices = triangle
+                    #print(approx)
+                    found_object['geometry']='triad'
+
+                    #calculating centroid, base and height of triangle
+                    (xc,zc), _, _ = find_triangle_details(approx)
+                    _, _, w, h = cv2.boundingRect(cntr)
+
+                    found_object['center'] = (xc, zc)
+                    found_object['width'] = w
+                    found_object['height'] = h
+
+                    rect = cv2.minAreaRect(cntr)
+                    box = cv2.boxPoints(rect)
+                    box = np.int0(box)
+                    angle = get_orientation(box, result)
+                
 
                 if display or publish:
                     # Traces a rectangle around each "object":
                     #cv2.drawContours(result, [box], 0, color['bgr'], 5)
-                    cv2.drawContours(result, [box], 0, (0,0,0), 5)
+                    #cv2.drawContours(result, [box], 0, (0,0,0), 5)
+                    cv2.drawContours(result, [box], 0, (0, 0, 0), 5)
                     #cv2.putText(result, str(angle * 180 / np.pi), box[1], cv2.FONT_HERSHEY_SIMPLEX, 0.5, color['bgr'], 1,
                                 #cv2.LINE_AA)
                     
-                    cv2.putText(result, str(angle * 180 / np.pi), tuple(box[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color['bgr'], 1, cv2.LINE_AA)
+                    cv2.putText(result, str(angle * 180 / np.pi), tuple(box[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 1, cv2.LINE_AA)
 
 
                 found_objects[color['name']].append(found_object)
@@ -135,8 +165,36 @@ def find_object(image_path, display=True, publish=False, print_res=False):
 
     return found_objects
 
+def find_triangle_details(approx): #This functions takes the vertices of a traingle and calculates centroid, base and height
+    # Extract vertices and treat the coordinates as (x, z)
+    x1, z1 = approx[0][0]
+    x2, z2 = approx[1][0]
+    x3, z3 = approx[2][0]
+    
+    # Calculate the centroid (CoM)
+    G_x = (x1 + x2 + x3) / 3
+    G_z = (z1 + z2 + z3) / 3
+    
+    # Use np.linalg.norm to calculate the distances (sides of the triangle)
+    side1 = np.linalg.norm(np.array([x1, z1]) - np.array([x2, z2]))
+    side2 = np.linalg.norm(np.array([x2, z2]) - np.array([x3, z3]))
+    side3 = np.linalg.norm(np.array([x3, z3]) - np.array([x1, z1]))
+    
+    # Base is the longest of the three sides
+    base = max(side1, side2, side3)
+    
+    # Use Heron's formula to find the area of the triangle
+    s = (side1 + side2 + side3) / 2  # semi-perimeter
+    area = np.sqrt(s * (s - side1) * (s - side2) * (s - side3))
+    
+    # Height can be found from the area formula: Area = 0.5 * base * height
+    height = (2 * area) / base
+    
+    return (G_x, G_z), base, height
 
-def get_orientation(box, img=None):
+
+
+def get_orientation(box, img=None): #Not really needed for this program
     '''
     box: 4x2 array containing the coordinates of a box's 4 corners
     img: the img on which to draw
@@ -198,8 +256,6 @@ def color_def():
 
     return colors
 
-from math import sin, cos #,radians
-
 def euler_to_quaternion(roll, pitch, yaw):
     """
     Convert Euler Angles to Quaternion.
@@ -253,7 +309,7 @@ def determine_shape(width, height, depth):
             if all(abs(dim - s_dim) <= tolerance for dim, s_dim in zip(dimensions, sorted_shape_dims)):
                 return shape
         
-        return "Unknown"
+        return "unknown"
 
 def build_castle(found_objects, pixel_to_m, y_offset, x_offset=0.155,z_offset=0, z_tolerance=0.005, depth=.029):
     """
@@ -278,17 +334,39 @@ def build_castle(found_objects, pixel_to_m, y_offset, x_offset=0.155,z_offset=0,
 
     for color, obj in blocks:
         # Convert pixel values to meters
+        geometry=obj['geometry']
         obj['center'] = (obj['center'][0] * pixel_to_m + x_offset, y_offset + (depth/2), obj['center'][1] * pixel_to_m + z_offset)
         obj['width'] *= pixel_to_m
         obj['height'] *= pixel_to_m
         obj['depth'] = depth  # Assuming depth is a constant for simplicity
 
-        # Calculate the shape of the block
-        obj_shape = determine_shape(obj['width'], obj['height'], obj['depth'])
+        # Calculate the shape of the block - For triangular it returns NA
+        obj_shape = determine_shape(obj['width'], obj['height'], obj['depth']) #this function outputs "NA" for triangles
         obj['shape'] = obj_shape
+        if geometry == 'triad':
+            obj['shape'] = 'triangle'
 
+
+        # Calculating the horizontal vs vertical configuration for rectangular and vertical objectobject
+        # Configuration determines how the gripper's pose while dropping an object at the desired location
+        if geometry == 'quad':
+            if obj_shape == 'cube': #for cube, it does not matter so we will keep the horizontal configuration
+                config = 'horizontal'
+            elif obj_shape == 'rect':
+                if obj['width']>obj['height']:
+                    config = 'horizontal'
+                else:
+                    config = 'vertical'
+        else: #for triangular object, we will leave it as horizontal
+            config = 'horizontal'
+        
+        if config == 'horizontal':
+            roll, pitch, yaw = (0,0,0)
+        else:
+            roll, pitch, yaw = (0,0,0) ## Need to fix this value
+            
         # Convert Euler angles to quaternion (roll, pitch, yaw are provided by obj)
-        roll, pitch, yaw = (obj['roll']), (obj['pitch']), (obj['yaw'])
+        #roll, pitch, yaw = (obj['roll']), (obj['pitch']), (obj['yaw'])
         quaternion = euler_to_quaternion(roll, pitch, yaw)
         obj['quaternion1'] = quaternion[0]
         obj['quaternion2'] = quaternion[1]
@@ -325,7 +403,8 @@ def build_castle(found_objects, pixel_to_m, y_offset, x_offset=0.155,z_offset=0,
             'width': obj['width'],
             'height': obj['height'],
             'depth': obj['depth'],
-            'shape': obj['shape']
+            'shape': obj['shape'],
+            'geometry': obj['geometry']
         })
 
     # Sort blocks within each layer based on their x-coordinate in ascending order
@@ -415,48 +494,6 @@ def evaluate_stability(layer_2_blocks, layer_1_blocks):
 
     return stability_results
 
-#No Longer using the "add_y_coordinates" function below
-'''
-def add_y_coordinates(sequential_blocks, y_increment=.034, layers=1):
-    """
-    Adds incremental y-coordinates to each block in the castle structures to simulate
-    creating multiple castle structures at given +y increments (m).
-
-    Args:
-        sequential_blocks (dict): The dictionary containing layers of blocks with their properties.
-        y_increment (float): The y-coordinate increment in centimeters. Defaults to .034 m.
-        layers (int): The total number of y-increments or castle structures. Defaults to 1.
-
-    Returns:
-        dict: A new dictionary with the updated blocks containing incremental y-coordinates.
-    """
-    new_sequential_blocks = {}
-
-    for layer_name, blocks in sequential_blocks.items():
-        new_blocks = []
-        for block in blocks:
-            # Initialize a list to store modified blocks with incremented y-coordinates
-            modified_blocks = []
-            for i in range(layers):
-                # Create a copy of the original block to modify
-                new_block = block.copy()
-                # Add the incremental y-coordinate
-                x, y, z = new_block['center']
-                new_y = y + (i * y_increment)  # Calculate the new y-coordinate
-                new_block['center'] = (x, new_y, z)
-                modified_blocks.append(new_block)
-            new_blocks.extend(modified_blocks)
-        new_sequential_blocks[layer_name] = new_blocks, z_tolerance=0.05, pixel_to_m=.029/190, depth=.029):
-    """
-    Simulates the building process of a castle based on the detected objects, grouping blocks into layers.
-    Additionally, calculates the shape of each block based on its dimensions.
-
-    Args:
-
-    return new_sequential_blocks
-
-'''
-
 def flatten_layers(layers_dict):
     """
     Flattens the layers of blocks into a single list of blocks.
@@ -472,23 +509,17 @@ def flatten_layers(layers_dict):
         flattened_blocks.extend(layer)
     return flattened_blocks
 
-
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-
-
 def plot_castle_structure(flattened_blocks):
     """
-    Plots a 3D representation of the castle structure.
+    Plots a 3D representation of the castle structure with triangular prisms having their triangular faces on the xz plane.
+    Rectangular faces connect these triangles along the y-axis.
 
     Args:
-        flattened_blocks (dict): The list containing blocks and their properties
+        flattened_blocks (list): The list containing blocks and their properties.
     """
-    # Initialize a 3D plot
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
-    # Color mapping (adjust as needed)
     color_map = {
         'yellow': 'yellow',
         'blue': 'blue',
@@ -498,34 +529,54 @@ def plot_castle_structure(flattened_blocks):
     }
 
     for block in flattened_blocks:
+        geometry = block['geometry']
         color = block['color']
         x, y, z = block['center']
         width = block['width']
         height = block['height']
-        depth= block['depth']
+        depth = block['depth']
+        plot_color = color_map.get(color, 'grey')
 
-        # Define the corners of the rectangle base
-        z_corners = [z - height/2, z + height/2]
-        y_corners = [y - depth/2, y + depth/2]
-        x_corners = [x - width/2, x + width/2]
+        if geometry == 'quad':
+            # Plot rectangular blocks
+            ax.bar3d(x - width / 2, y - depth / 2, z - height / 2,
+                     width, depth, height, color=plot_color)
+        elif geometry == 'triad':
+            # Triangular faces on the xz plane
+            # Base triangle vertices
+            base = np.array([
+                [x - width / 2, y - depth / 2, z - height / 2],  # Left corner
+                [x + width / 2, y - depth / 2, z - height / 2],  # Right corner
+                [x, y - depth / 2, z + height / 2]               # Top middle
+            ])
+            # Top triangle vertices (shifted along the y-axis)
+            top = base + np.array([[0, depth, 0]])  # Shift all vertices along the y-axis
 
-        # Plot rectangle (block)
-        ax.bar3d(x_corners[0], y_corners[0], z_corners[0], 
-                    x_corners[1]-x_corners[0], y_corners[1]-y_corners[0], z_corners[1]-z_corners[0], 
-                    color=color_map.get(color, 'grey'))
+            # Combine base and top for easier indexing
+            vertices = np.vstack([base, top])
 
-    
-    #ax.set_box_aspect([1,.25,.7])  # Matplotlib 3.3.0 and newer
+            # Sides: Connect vertices to form rectangular faces
+            faces = [
+                [vertices[i] for i in [0, 3, 4, 1]],  # Side 1
+                [vertices[i] for i in [1, 4, 5, 2]],  # Side 2
+                [vertices[i] for i in [2, 5, 3, 0]],  # Side 3
+                [vertices[i] for i in [0, 1, 2]],     # Base triangle
+                [vertices[i] for i in [3, 4, 5]]      # Top triangle
+            ]
+
+            poly3d = [list(map(tuple, face)) for face in faces]
+            ax.add_collection3d(Poly3DCollection(poly3d, facecolors=plot_color, edgecolors=plot_color, linewidths=1, alpha=1))
 
     ax.set_xlabel('X axis (m)')
     ax.set_ylabel('Y axis (m)')
     ax.set_zlabel('Z axis (m)')
-
     ax.set_title('3D Castle Plot')
+
     ax.set_xlim(0.150,0.350)
     ax.set_ylim(0.0,0.20)
     ax.set_zlim(0.0,0.20)
     plt.show()
+
 
 
 def create_poses_colors_shape_list(final_list):
@@ -552,35 +603,12 @@ def create_poses_colors_shape_list(final_list):
     
     return poses_colors_shape
 
-
-#example_only
-def from_blue_print():
-        #place_list = rospy.wait_for_message("/cap120/place_list",Pose, timeout=5)
-        place_pose_1 = Pose()
-        place_pose_1.position.x = 0.200
-        place_pose_1.position.y = 0.200
-        place_pose_1.position.z = 1
-
-        place_pose_2 = Pose()
-        place_pose_2.position.x = 0.200
-        place_pose_2.position.y = 0.200
-        place_pose_2.position.z = 1
-
-        place_pose_3 = Pose()
-        place_pose_3.position.x = 0.200
-        place_pose_3.position.y = 0.200
-        place_pose_3.position.z = 1
-
-        place_list = [place_pose_1, place_pose_2, place_pose_3]
-
-        return place_list
-
 #Execution of all functions
 if __name__ == '__main__':
 
     #Block Detection- provide image(s) on after another
     # Define the relative path to the blueprint image
-    blueprint_filename = "blueprint_cube_rect.png"
+    blueprint_filename = "blueprint_cube_triangle.png"
     # Get the directory where the script is located
     script_dir = os.path.dirname(__file__)
     # Construct the full path to the blueprint image
@@ -588,16 +616,12 @@ if __name__ == '__main__':
 
     # Use the constructed path in the find_object function
     found_object_results = find_object(blueprint_path)
-    #found_object_results = find_object("./blueprint_cube_only.png")
-    #found_object_results2 = find_object('/home/mahirdaihan3534/capstone120/src/moving/src/Blueprint_All Blocks.png')
-    #found_object_results3 = find_object('/home/mahirdaihan3534/capstone120/src/moving/src/Blueprint_zero border.png')
-
+    #print(found_object_results)
+    
     #Srting the blocks based on x and z coordinates- also adding y-coordinate
-    sequential_blocks = build_castle(found_object_results,pixel_to_m=.029/144, y_offset=0.155)
-    #sequential_blocks2 = build_castle(found_object_results2,pixel_to_m=.029/175, y_offset=0.080)
-    #sequential_blocks3 = build_castle(found_object_results3,pixel_to_m=.029/182, y_offset=0.005)
+    sequential_blocks = build_castle(found_object_results,pixel_to_m=.029/146, y_offset=0.155)
+    #sequential_blocks = build_castle(found_object_results,pixel_to_m=.029/144, y_offset=0.155)
 
-    #print(sequential_blocks)
     
     #You can perform stability analysis any two sequential layers (e.g. Layer 2 on Layer 1, Layer 3 on Layer 2, Layer 4 on Layer 3 etc.)
     #layer_2_blocks = sequential_blocks['Layer 2']
@@ -605,34 +629,18 @@ if __name__ == '__main__':
 
     #stability_results = evaluate_stability(layer_2_blocks, layer_1_blocks)
     
-    '''
-    #Creating multi-layered (in y direction) castles
-    #modified_blocks = add_y_coordinates(sequential_blocks)
-    #print(modified_blocks)
-    '''
 
     #Flatten the blocks to provide a sequential list (gets rid of "Layer" differentiation)
     flattened_blocks = flatten_layers(sequential_blocks)
-    #flattened_blocks2 = flatten_layers(sequential_blocks2)
-    #flattened_blocks3 = flatten_layers(sequential_blocks3)
 
     #Final List
     #final_list=flattened_blocks + flattened_blocks2 + flattened_blocks3
     final_list=flattened_blocks
-
-    print(final_list)
+    #print(final_list)
 
     #plot the multi-layered castle structure
     plot_castle_structure(final_list)
 
-
-    poses_colors_shape = create_poses_colors_shape_list(final_list)
-    #print(poses_colors_shape)
-
-    #for item in poses_colors_shape:
-        #pose, shape, color = item
-        #print(pose)
-        #print(shape)
-        #print(color)
-    #l=from_blue_print()
-    #print(l)
+    #Print poses
+    transfer = create_poses_colors_shape_list(final_list)
+    print(transfer)
