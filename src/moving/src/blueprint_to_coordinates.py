@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import numpy as np
 from math import sin, cos #,radians
+import tf
 
 '''
 User Instruction
@@ -256,30 +257,6 @@ def color_def():
 
     return colors
 
-def euler_to_quaternion(roll, pitch, yaw):
-    """
-    Convert Euler Angles to Quaternion.
-
-    Args:
-        roll, pitch, yaw: Euler angles in radians.
-
-    Returns:
-        tuple: Quaternion (w, x, y, z).
-    """
-    cy = cos(yaw * 0.5)
-    sy = sin(yaw * 0.5)
-    cp = cos(pitch * 0.5)
-    sp = sin(pitch * 0.5)
-    cr = cos(roll * 0.5)
-    sr = sin(roll * 0.5)
-
-    w = cr * cp * cy + sr * sp * sy
-    x = sr * cp * cy - cr * sp * sy
-    y = cr * sp * cy + sr * cp * sy
-    z = cr * cp * sy - sr * sp * cy
-
-    return (w, x, y, z)
-
 def determine_shape(width, height, depth):
         """
         Determines the shape of an object based on its dimensions within a tolerance.
@@ -342,36 +319,37 @@ def build_castle(found_objects, pixel_to_m, y_offset, x_offset=0.155,z_offset=0,
 
         # Calculate the shape of the block - For triangular it returns NA
         obj_shape = determine_shape(obj['width'], obj['height'], obj['depth']) #this function outputs "NA" for triangles
-        obj['shape'] = obj_shape
         if geometry == 'triad':
-            obj['shape'] = 'triangle'
+            obj_shape = 'triangle'
 
+        obj['shape'] = obj_shape
 
-        # Calculating the horizontal vs vertical configuration for rectangular and vertical objectobject
-        # Configuration determines how the gripper's pose while dropping an object at the desired location
-        if geometry == 'quad':
-            if obj_shape == 'cube': #for cube, it does not matter so we will keep the horizontal configuration
-                config = 'horizontal'
-            elif obj_shape == 'rect':
-                if obj['width']>obj['height']:
-                    config = 'horizontal'
-                else:
-                    config = 'vertical'
-        else: #for triangular object, we will leave it as horizontal
-            config = 'horizontal'
+        # Calculating the configuration for dropping various objects
+        # Configuration determines what steps to follow when dropping the object at desired location
+        # "normal"- Object is picked up and then moved to the desired location
+        # "extra" - Object is picked up, dropped on ground at the base positin, user manipulates the objects in desired configuration, and the the object gets picked up by arm and dropped 
+        if obj_shape == 'cube':
+                obj['config'] = 'normal'
+        elif obj_shape== 'rect':
+            if obj['width']>obj['height']: #represents object standing horizontally
+                obj['config'] = 'normal'
+            else:
+                obj['config'] = 'extra' #represents object standing vertically
+        elif obj_shape== 'long':
+            if obj['width']>obj['height']: #represents object standing horizontally
+                obj['config'] = 'normal'
+            else:
+                obj['config'] = 'extra' #represents object standing vertically
+        else: 
+            obj['config'] = 'extra'
         
-        if config == 'horizontal':
-            roll, pitch, yaw = (0,0,0)
-        else:
-            roll, pitch, yaw = (0,0,0) ## Need to fix this value
-            
-        # Convert Euler angles to quaternion (roll, pitch, yaw are provided by obj)
-        #roll, pitch, yaw = (obj['roll']), (obj['pitch']), (obj['yaw'])
-        quaternion = euler_to_quaternion(roll, pitch, yaw)
-        obj['quaternion1'] = quaternion[0]
-        obj['quaternion2'] = quaternion[1]
-        obj['quaternion3'] = quaternion[2]
-        obj['quaternion4'] = quaternion[3]
+        # This is the orientation of the gripper when it is dropped 
+        # This value remains constant in all cases since we don't to play around with orientation of the gripper too much
+        x,y,z,w = tf.transformations.quaternion_from_euler(0, np.pi/2, 0)
+        obj['quaternion_w'] = w
+        obj['quaternion_x'] = x
+        obj['quaternion_y'] = y
+        obj['quaternion_z'] = z
 
     # Sort the blocks based on their z-coordinate in ascending order
     sorted_blocks = sorted(blocks, key=lambda x: x[1]['center'][2])
@@ -396,14 +374,15 @@ def build_castle(found_objects, pixel_to_m, y_offset, x_offset=0.155,z_offset=0,
         layers[f"Layer {current_layer_index}"].append({
             'color': color,
             'center': obj['center'],
-            'quaternion1': obj['quaternion1'],
-            'quaternion2': obj['quaternion2'],
-            'quaternion3': obj['quaternion3'],
-            'quaternion4': obj['quaternion4'],
+            'quaternion_w': obj['quaternion_w'],
+            'quaternion_x': obj['quaternion_x'],
+            'quaternion_y': obj['quaternion_y'],
+            'quaternion_z': obj['quaternion_z'],
             'width': obj['width'],
             'height': obj['height'],
             'depth': obj['depth'],
             'shape': obj['shape'],
+            'config': obj['config'],
             'geometry': obj['geometry']
         })
 
@@ -589,16 +568,17 @@ def create_poses_colors_shape_list(final_list):
         place_pose.position.y = obj['center'][1]
         place_pose.position.z = obj['center'][2]
 
-        place_pose.orientation.x= obj['quaternion1']
-        place_pose.orientation.y= obj['quaternion2']
-        place_pose.orientation.z= obj['quaternion3']
-        place_pose.orientation.w= obj['quaternion4']
+        place_pose.orientation.w= obj['quaternion_w']
+        place_pose.orientation.x= obj['quaternion_x']
+        place_pose.orientation.y= obj['quaternion_y']
+        place_pose.orientation.z= obj['quaternion_z']
 
         shape = obj['shape']
         color = obj['color']
+        config = obj ['config']
         
         # Combine place_pose, shape, and color into a tuple and add it to the poses list
-        info = (place_pose, shape, color)
+        info = (place_pose, shape, color, config)
         poses_colors_shape.append(info)
     
     return poses_colors_shape
