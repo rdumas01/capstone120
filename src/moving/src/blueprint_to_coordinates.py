@@ -121,7 +121,8 @@ def find_object(image_path, display=True, publish=False, print_res=False):
                     #if print_res:
                         #print('Found {} object at ({}, {})'.format(color['name'], xc, zc))
 
-                    rect = cv2.minAreaRect(cntr)
+                    #rect = cv2.minAreaRect(cntr)
+                    rect : cv2.RotatedRect = cv2.minAreaRect(cntr)
                     box = cv2.boxPoints(rect)
                     box = np.int0(box)
                     angle = get_orientation(box, result) #don't really need this- just for visual
@@ -135,11 +136,15 @@ def find_object(image_path, display=True, publish=False, print_res=False):
                     (xc,zc), _, _ = find_triangle_details(approx)
                     _, _, w, h = cv2.boundingRect(cntr)
 
+                    # Draw the centroid on the image
+                    cv2.circle(result, (int(xc), int(zc)), 5, (0, 0, 0), -1)
+
                     found_object['center'] = (xc, zc)
                     found_object['width'] = w
                     found_object['height'] = h
 
-                    rect = cv2.minAreaRect(cntr)
+                    #rect = cv2.minAreaRect(cntr)
+                    rect : cv2.RotatedRect = cv2.minAreaRect(cntr)
                     box = cv2.boxPoints(rect)
                     box = np.int0(box)
                     angle = get_orientation(box, result)
@@ -340,7 +345,7 @@ def build_castle(found_objects, pixel_to_m, y_offset, x_offset=0.155,z_offset=0,
                 obj['config'] = 'normal'
             else:
                 obj['config'] = 'extra' #represents object standing vertically
-        else: 
+        elif obj_shape == 'triangle':
             obj['config'] = 'extra'
         
         # This is the orientation of the gripper when it is dropped 
@@ -599,7 +604,7 @@ if __name__ == '__main__':
     #print(found_object_results)
     
     #Srting the blocks based on x and z coordinates- also adding y-coordinate
-    sequential_blocks = build_castle(found_object_results,pixel_to_m=.029/146, y_offset=0.155)
+    sequential_blocks = build_castle(found_object_results,pixel_to_m=0.029/146, y_offset=0.155)
     #sequential_blocks = build_castle(found_object_results,pixel_to_m=.029/144, y_offset=0.155)
 
     
@@ -616,7 +621,7 @@ if __name__ == '__main__':
     #Final List
     #final_list=flattened_blocks + flattened_blocks2 + flattened_blocks3
     final_list=flattened_blocks
-    #print(final_list)
+    print(final_list)
 
     #plot the multi-layered castle structure
     plot_castle_structure(final_list)

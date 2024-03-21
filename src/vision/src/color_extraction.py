@@ -97,21 +97,44 @@ def find_object(image, display=False, publish=False, print_res=False):
             if cv2.contourArea(cntr) >= min_area:
                 found_object = dict()
 
-                xc, yc, w, h = cv2.boundingRect(cntr)
-                xc = xc + w//2
-                yc = yc + h//2
+                epsilon = .018 * cv2.arcLength(cntr, True) #play around with this value- .018 on the blueprint side
+                approx = cv2.approxPolyDP(cntr, epsilon, True) #approx is a list of vertices of detected object
+                #length=len(approx)
+                #print(length)
 
-                found_object['center'] = (xc,yc)
+                if len(approx) == 4: #4 vertices = quadrilateral
+                    xc, yc, w, h = cv2.boundingRect(cntr)
+                    xc = xc + w//2
+                    yc = yc + h//2
 
-                if print_res:
-                    print('Found {} object at ({}, {})'.format(color['name'], xc, yc))
+                    found_object['center'] = (xc,yc)
 
-                rect : cv2.RotatedRect = cv2.minAreaRect(cntr)
-                box = cv2.boxPoints(rect)
-                box = np.int0(box)
-                angle, bloc_shape = get_orientation_and_shape(box, result)
-                found_object['yaw'] = angle
-                found_object['shape'] = bloc_shape
+                    if print_res:
+                        print('Found {} object at ({}, {})'.format(color['name'], xc, yc))
+
+                    rect : cv2.RotatedRect = cv2.minAreaRect(cntr)
+                    box = cv2.boxPoints(rect)
+                    box = np.int0(box)
+                    angle, bloc_shape = get_orientation_and_shape(box, result)
+                    found_object['yaw'] = angle
+                    found_object['shape'] = bloc_shape
+
+                elif len(approx)== 3: #3 vertices = triangle
+                    #calculating centroid, base and height of triangle
+                    (xc,yc), _, _ = find_triangle_details(approx)
+                    #_, _, w, h = cv2.boundingRect(cntr) #don't really need this
+
+                    found_object['center'] = (xc, yc)
+
+                    if print_res:
+                        print('Found {} object at ({}, {})'.format(color['name'], xc, yc))
+
+                    rect : cv2.RotatedRect = cv2.minAreaRect(cntr)
+                    box = cv2.boxPoints(rect)
+                    box = np.int0(box)
+                    angle, _ = get_orientation_and_shape(box, result)
+                    found_object['yaw'] = angle
+                    found_object['shape'] = 'triangle'
 
                 if display or publish:
                     # Traces a rectangle around each "object":
@@ -178,6 +201,34 @@ def get_orientation_and_shape(box, img=None):
         angle -= np.pi
 
     return angle, bloc_shape
+
+
+def find_triangle_details(approx): #This functions takes the vertices of a traingle and calculates centroid, base and height
+    # Extract vertices and treat the coordinates as (x, z)
+    x1, z1 = approx[0][0]
+    x2, z2 = approx[1][0]
+    x3, z3 = approx[2][0]
+    
+    # Calculate the centroid (CoM)
+    G_x = (x1 + x2 + x3) / 3
+    G_z = (z1 + z2 + z3) / 3
+    
+    # Use np.linalg.norm to calculate the distances (sides of the triangle)
+    side1 = np.linalg.norm(np.array([x1, z1]) - np.array([x2, z2]))
+    side2 = np.linalg.norm(np.array([x2, z2]) - np.array([x3, z3]))
+    side3 = np.linalg.norm(np.array([x3, z3]) - np.array([x1, z1]))
+    
+    # Base is the longest of the three sides
+    base = max(side1, side2, side3)
+    
+    # Use Heron's formula to find the area of the triangle
+    s = (side1 + side2 + side3) / 2  # semi-perimeter
+    area = np.sqrt(s * (s - side1) * (s - side2) * (s - side3))
+    
+    # Height can be found from the area formula: Area = 0.5 * base * height
+    height = (2 * area) / base
+    
+    return (G_x, G_z), base, height
 
 
 def draw_axis(img, p_, q_, color, scale):
