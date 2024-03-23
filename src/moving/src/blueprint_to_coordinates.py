@@ -14,18 +14,13 @@ import tf
 
 '''
 User Instruction
-1. Include the full image path in "find_object" function or you will get an error
 
-2. For the first run, within the "build_castle" function, set the "pixel_to_m" ratio to 1. Also, set the x, y and z offsets to zero.
-    This way you will find out what the coordinate of the x axis is in pixel coordinate. 
-    Then, next time set the "pixel_to_m" ratio  = actual width(m) / 2 * x coordinate of CoM (pixel)
-    Make sure to change the x, y and z coordinates back to desired values.
-
-3. 
+For the first run, within the "build_castle" function, set the "pixel_to_m" ratio to "known object width"/144. 
+Then, run the code printing the output of "build_castle" function and see if you get the proper width. If not, adjust the denominator on the "pixel_to_m" variable.
 
 '''
 
-def find_object(image_path, display=True, publish=False, print_res=False):
+def find_object(image_path, display=True, publish=False):
     '''
     Scans an image to find colored object and returns their coordinates.
 
@@ -33,7 +28,6 @@ def find_object(image_path, display=True, publish=False, print_res=False):
         image_path: Path to the input image (JPG/PNG format)
         display: True to draw squares around
         publish: True to publish result image to a topic
-        print_res: True to print coordinates of each block found in terminal
 
     Returns:
         found_objects: dictionary where each key is a color, and the value is a list of dictionaries for each object found
@@ -46,12 +40,12 @@ def find_object(image_path, display=True, publish=False, print_res=False):
     ## Color Definitions
     colors = color_def()
 
-    # Reading the image
+    # Reading the castle blueprint image
     img = cv2.imread(image_path)
     img=cv2.rotate(img, cv2.ROTATE_180) #Image rotated by 180 degrees to get proper coordinate (origin=top left, +x=right, +z=downward)
     img=cv2.flip(img,1) #flip image horizontally
 
-    # Define kernel size for noise removal
+    # Define kernel size for noise removal - not really required on the blueprint sizd
     kernel = np.ones((7, 7), np.uint8)
 
     # Convert to hsv colorspace
@@ -102,11 +96,9 @@ def find_object(image_path, display=True, publish=False, print_res=False):
                 found_object = dict()
 
                 # Determine if the object geometry is rectangular or crcular
-
                 epsilon = .018 * cv2.arcLength(cntr, True)
                 approx = cv2.approxPolyDP(cntr, epsilon, True) #approx is a list of vertices of detected object
-                #length=len(approx)
-                #print(length)
+            
 
                 if len(approx) == 4: #4 vertices = quadrilateral
                     found_object['geometry']='quad'
@@ -118,60 +110,51 @@ def find_object(image_path, display=True, publish=False, print_res=False):
                     found_object['width'] = w
                     found_object['height'] = h
 
-                    #if print_res:
-                        #print('Found {} object at ({}, {})'.format(color['name'], xc, zc))
-
-                    #rect = cv2.minAreaRect(cntr)
                     rect : cv2.RotatedRect = cv2.minAreaRect(cntr)
                     box = cv2.boxPoints(rect)
                     box = np.int0(box)
-                    angle = get_orientation(box, result) #don't really need this- just for visual
-
+                    angle = get_orientation(box, result) #don't really need this- just for visualizing major and minor axis
+                    
+                    angle_degree = angle * 180/np.pi
+                    angle_text = "{:.2f} deg".format(angle_degree)
+                    cv2.putText(result, angle_text, (int(xc), int(zc)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 1, cv2.LINE_AA)
+                    cv2.drawContours(result, [box], 0, (0, 0, 0), 5)
+                    
                 
                 elif len(approx)== 3: #3 vertices = triangle
-                    #print(approx)
                     found_object['geometry']='triad'
 
-                    #calculating centroid, base and height of triangle
-                    (xc,zc), _, _ = find_triangle_details(approx)
-                    _, _, w, h = cv2.boundingRect(cntr)
+                    #calculating centroid, base (width), height and angle of triangle
+                    (xc,zc), w, h, angle, third_point= find_triangle_details(approx)
+                    
+                    # Convert angle from radians to degrees, for visualization
+                    angle_degrees = np.degrees(angle)
+
+                    # Draw angle on the image
+                    angle_text = "{:.2f} deg".format(angle_degrees)
+                    cv2.putText(result, angle_text, (int(xc), int(zc)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 1, cv2.LINE_AA)
 
                     # Draw the centroid on the image
                     cv2.circle(result, (int(xc), int(zc)), 5, (0, 0, 0), -1)
 
+                    #Draw the axis - major axis only. No need to draw the minor
+                    cv2.line(result, (int(xc), int(zc)), (int(third_point[0]), int(third_point[1])), (255, 255, 0), 1, cv2.LINE_AA)
+
+
                     found_object['center'] = (xc, zc)
                     found_object['width'] = w
                     found_object['height'] = h
-
-                    #rect = cv2.minAreaRect(cntr)
-                    rect : cv2.RotatedRect = cv2.minAreaRect(cntr)
-                    box = cv2.boxPoints(rect)
-                    box = np.int0(box)
-                    angle = get_orientation(box, result)
-                
-
-                if display or publish:
-                    # Traces a rectangle around each "object":
-                    #cv2.drawContours(result, [box], 0, color['bgr'], 5)
-                    #cv2.drawContours(result, [box], 0, (0,0,0), 5)
-                    cv2.drawContours(result, [box], 0, (0, 0, 0), 5)
-                    #cv2.putText(result, str(angle * 180 / np.pi), box[1], cv2.FONT_HERSHEY_SIMPLEX, 0.5, color['bgr'], 1,
-                                #cv2.LINE_AA)
-                    
-                    cv2.putText(result, str(angle * 180 / np.pi), tuple(box[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 1, cv2.LINE_AA)
-
-
+ 
                 found_objects[color['name']].append(found_object)
-                #print(found_objects)
 
-    if display:  # Displays the frame with rectangles on it
+    if display:  # Displays the frame with detected objects on it
         cv2.imshow("Result", result)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
     return found_objects
 
-def find_triangle_details(approx): #This functions takes the vertices of a traingle and calculates centroid, base and height
+def find_triangle_details(approx):
     # Extract vertices and treat the coordinates as (x, z)
     x1, z1 = approx[0][0]
     x2, z2 = approx[1][0]
@@ -181,26 +164,36 @@ def find_triangle_details(approx): #This functions takes the vertices of a train
     G_x = (x1 + x2 + x3) / 3
     G_z = (z1 + z2 + z3) / 3
     
-    # Use np.linalg.norm to calculate the distances (sides of the triangle)
+    # calculate the distances (sides of the triangle)
     side1 = np.linalg.norm(np.array([x1, z1]) - np.array([x2, z2]))
     side2 = np.linalg.norm(np.array([x2, z2]) - np.array([x3, z3]))
     side3 = np.linalg.norm(np.array([x3, z3]) - np.array([x1, z1]))
     
     # Base is the longest of the three sides
-    base = max(side1, side2, side3)
+    sides = [(side1, (x1, z1), (x2, z2)), (side2, (x2, z2), (x3, z3)), (side3, (x3, z3), (x1, z1))]
+    base, base_start, base_end = max(sides, key=lambda item: item[0])
     
-    # Use Heron's formula to find the area of the triangle
-    s = (side1 + side2 + side3) / 2  # semi-perimeter
-    area = np.sqrt(s * (s - side1) * (s - side2) * (s - side3))
+    # Calculate the center of the base
+    base_center = ((base_start[0] + base_end[0]) / 2, (base_start[1] + base_end[1]) / 2)
+
+    # Find the 3rd point which is not part of the base
+    third_point = set([(x1, z1), (x2, z2), (x3, z3)]) - set([base_start, base_end])
+    third_point = list(third_point)[0]
     
-    # Height can be found from the area formula: Area = 0.5 * base * height
-    height = (2 * area) / base
+    # Calculate the angle between center-third point line and the vertical axis -- angle of the height vector
+    dx = third_point[0] - base_center[0]
+    dz = third_point[1] - base_center[1]
+    angle = (-atan2(dz, dx) - np.pi / 2) % np.pi
+    if angle >= 6 / 10 * np.pi:
+        angle -= np.pi
     
-    return (G_x, G_z), base, height
+    #height of the triangle
+    height = np.linalg.norm(np.array(base_center) - np.array(third_point))
+    
+    return (G_x, G_z), base, height, angle, third_point
 
 
-
-def get_orientation(box, img=None): #Not really needed for this program
+def get_orientation(box, img=None): #for visualization only
     '''
     box: 4x2 array containing the coordinates of a box's 4 corners
     img: the img on which to draw
@@ -218,9 +211,6 @@ def get_orientation(box, img=None): #Not really needed for this program
     else:
         major_ax = p2 - p3
         minor_ax = p1 - p2
-    
-    #major_ax = p1 - p2
-    #minor_ax = p2 - p3
 
     if img is not None:
         draw_axis(img, center, center + major_ax, (255, 255, 0), 10)
@@ -300,27 +290,25 @@ def build_castle(found_objects, pixel_to_m, y_offset, x_offset=0.155,z_offset=0,
 
     Args:
         found_objects (dict): Output of the find_object function containing detected objects categorized by color.
-        z_tolerance (float): Tolerance for grouping blocks into layers based on their z-coordinate. Defaults to 0.05 cm.
-        pixel_to_m (float): Conversion factor from pixels to meters. Defaults to .029 m / 190 pixels.
+        z_tolerance (float): Tolerance for grouping blocks into layers based on their z-coordinate. Defaults to 0.005 m.
+        pixel_to_m (float): Conversion factor from pixels to meters.
         depth (float): Default depth of each block, used for shape determination.
         x_offset, y_offset, z_offset: Adding this realistic world coordinate to calculated coordinates values from the image.
 
     Returns:
         dict: A dictionary containing layers of blocks, where each layer contains sequential blocks with their color,
-              center of mass (x, y, z coordinates), gripper_roll, gripper_pitch, gripper_yaw angles, width, height, depth,
-              and shape.
+              center of mass (x, y, z coordinates) and other attributed.
     """
 
     # Flatten the detected objects dictionary to a list of tuples (color, object)
     blocks = [(color, obj) for color, objects in found_objects.items() for obj in objects]
 
     for color, obj in blocks:
-        # Convert pixel values to meters
-        geometry=obj['geometry']
+        geometry = obj['geometry']
         obj['center'] = (obj['center'][0] * pixel_to_m + x_offset, y_offset + (depth/2), obj['center'][1] * pixel_to_m + z_offset)
-        obj['width'] *= pixel_to_m
-        obj['height'] *= pixel_to_m
-        obj['depth'] = depth  # Assuming depth is a constant for simplicity
+        obj['width'] *= pixel_to_m # Convert pixel values to meters
+        obj['height'] *= pixel_to_m # Convert pixel values to meters
+        obj['depth'] = depth 
 
         # Calculate the shape of the block - For triangular it returns NA
         obj_shape = determine_shape(obj['width'], obj['height'], obj['depth']) #this function outputs "NA" for triangles
@@ -332,7 +320,7 @@ def build_castle(found_objects, pixel_to_m, y_offset, x_offset=0.155,z_offset=0,
         # Calculating the configuration for dropping various objects
         # Configuration determines what steps to follow when dropping the object at desired location
         # "normal"- Object is picked up and then moved to the desired location
-        # "extra" - Object is picked up, dropped on ground at the base positin, user manipulates the objects in desired configuration, and the the object gets picked up by arm and dropped 
+        # "extra" - Requires extra steps for dropping
         if obj_shape == 'cube':
                 obj['config'] = 'normal'
         elif obj_shape== 'rect':
@@ -364,7 +352,7 @@ def build_castle(found_objects, pixel_to_m, y_offset, x_offset=0.155,z_offset=0,
     current_layer_index = 0  # Initialize current_layer_index as 0
     current_z = None
 
-    # Group blocks based on z-coordinate with tolerance
+    # Group blocks based on z-coordinate within tolerance
     for color, obj in sorted_blocks:
         z_coord = obj['center'][2]
 
@@ -591,9 +579,8 @@ def create_poses_colors_shape_list(final_list):
 #Execution of all functions
 if __name__ == '__main__':
 
-    #Block Detection- provide image(s) on after another
     # Define the relative path to the blueprint image
-    blueprint_filename = "blueprint_cube_triangle.png"
+    blueprint_filename = "blueprint_ultimate_castle.png"
     # Get the directory where the script is located
     script_dir = os.path.dirname(__file__)
     # Construct the full path to the blueprint image
@@ -603,29 +590,25 @@ if __name__ == '__main__':
     found_object_results = find_object(blueprint_path)
     #print(found_object_results)
     
-    #Srting the blocks based on x and z coordinates- also adding y-coordinate
+    #Create a sequential list of blocks
     sequential_blocks = build_castle(found_object_results,pixel_to_m=0.029/146, y_offset=0.155)
-    #sequential_blocks = build_castle(found_object_results,pixel_to_m=.029/144, y_offset=0.155)
 
-    
     #You can perform stability analysis any two sequential layers (e.g. Layer 2 on Layer 1, Layer 3 on Layer 2, Layer 4 on Layer 3 etc.)
     #layer_2_blocks = sequential_blocks['Layer 2']
     #layer_1_blocks = sequential_blocks['Layer 1']
 
     #stability_results = evaluate_stability(layer_2_blocks, layer_1_blocks)
     
-
     #Flatten the blocks to provide a sequential list (gets rid of "Layer" differentiation)
     flattened_blocks = flatten_layers(sequential_blocks)
 
-    #Final List
-    #final_list=flattened_blocks + flattened_blocks2 + flattened_blocks3
+    # Here user can add flattened blocks from separate images
     final_list=flattened_blocks
-    print(final_list)
+    #print(final_list)
 
     #plot the multi-layered castle structure
     plot_castle_structure(final_list)
 
     #Print poses
     transfer = create_poses_colors_shape_list(final_list)
-    print(transfer)
+    #print(transfer)
