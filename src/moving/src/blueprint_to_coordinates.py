@@ -611,4 +611,4 @@ if __name__ == '__main__':
 
     #Print poses
     transfer = create_poses_colors_shape_list(final_list)
-    #print(transfer)
+    print(transfer)

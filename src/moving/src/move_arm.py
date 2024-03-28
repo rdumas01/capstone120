@@ -179,14 +179,21 @@ class move_arm_node:
 
                 #At this point, the user will take the object and manually change its orientation to vertical ('upright mode')
                 rospy.sleep(5)
-                
-                #Now the camera will look for the object from the base position and return its pose
-                #color is not important here since there will be only one object in the view
-                find_pose = get_target_pose(color = color, shape = None) 
-                find_pose_copy = deepcopy(find_pose) 
 
-                #Now pick up the object and return to base position
-                self.pickup_from_above(find_pose_copy)
+                grabbed = False #reset grabbed to False again
+                
+                while not grabbed:
+                    #Now the camera will look for the object from the base position and return its pose
+                    #color is not important here since there will be only one object in the view
+                    find_pose = get_target_pose(color = color, shape = None) 
+                    find_pose_copy = deepcopy(find_pose) 
+
+                    #Now pick up the object and return to base position
+                    self.pickup_from_above(find_pose_copy)
+
+                    # if grabbed, return True, then exit while loop to execute drop_bloc
+                    grabbed = self.check_closure()
+
 
             if target_pose !=None:
                 self.drop_goal(pose)
@@ -204,9 +211,37 @@ class move_arm_node:
     def drop_try(self):
         self.base_position() #Just for safety start at base position
         self.base_ground_position() #Lower the gripper to where the object needs to be dropped (the table)
-        self.drop() #open the gripper to drop this object
+        self.drop()
+        
+        # place_pose = Pose()
 
-        self.base_position() #go back to base position
+        # place_pose.position.x = 0.4
+        # place_pose.position.y = 0.4
+        # place_pose.position.z = 0.01
+
+        # place_pose.orientation.w= 0.707
+        # place_pose.orientation.x= 0
+        # place_pose.orientation.y= 0.707
+        # place_pose.orientation.z= 0
+        
+        # #rotate the pitch of the arm and go at a point near the base of the arm
+        # place_pose = self.rotate_pitch(place_pose,-np.pi/2) 
+        # self.arm.set_joint_value_target(place_pose, True)
+        # self.arm.go()
+
+        #Now, go to the pick-up site
+        #place_pose.position.x = 0.250
+        #place_pose.position.y = 0.250
+        #place_pose.position.z = 0.2
+
+        #place_pose = self.rotate_pitch(place_pose,0) 
+
+        #self.arm.set_joint_value_target(place_pose, True)
+        #self.arm.go()
+
+
+
+        #self.base_position() #go back to base position
     
     def look_around(self, color : str = None, shape : str = None):
         target_pose = None
@@ -339,6 +374,25 @@ class move_arm_node:
 
         r, p, y = tf.transformations.euler_from_quaternion([x, y, z, w])
         y += angle
+
+        new_x, new_y, new_z, new_w = tf.transformations.quaternion_from_euler(r, p, y)
+        pose.orientation.x = new_x
+        pose.orientation.y = new_y
+        pose.orientation.z = new_z
+        pose.orientation.w = new_w
+
+        return pose
+    
+    
+    def rotate_pitch(self, pose: Pose, angle):
+        
+        x = pose.orientation.x
+        y = pose.orientation.y
+        z = pose.orientation.z
+        w = pose.orientation.w
+
+        r, p, y = tf.transformations.euler_from_quaternion([x, y, z, w])
+        p += angle
 
         new_x, new_y, new_z, new_w = tf.transformations.quaternion_from_euler(r, p, y)
         pose.orientation.x = new_x
