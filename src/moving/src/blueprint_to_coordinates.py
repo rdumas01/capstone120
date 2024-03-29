@@ -580,7 +580,7 @@ def create_poses_colors_shape_list(final_list):
 if __name__ == '__main__':
 
     # Define the relative path to the blueprint image
-    blueprint_filename = "blueprint_ultimate_castle.png"
+    blueprint_filename = "blueprint_cube_rect.png"
     # Get the directory where the script is located
     script_dir = os.path.dirname(__file__)
     # Construct the full path to the blueprint image
@@ -591,7 +591,8 @@ if __name__ == '__main__':
     #print(found_object_results)
     
     #Create a sequential list of blocks
-    sequential_blocks = build_castle(found_object_results,pixel_to_m=0.029/146, y_offset=0.155)
+    sequential_blocks = build_castle(found_object_results,pixel_to_m=0.029/144, y_offset=0.155)
+    print(sequential_blocks)
 
     #You can perform stability analysis any two sequential layers (e.g. Layer 2 on Layer 1, Layer 3 on Layer 2, Layer 4 on Layer 3 etc.)
     #layer_2_blocks = sequential_blocks['Layer 2']
