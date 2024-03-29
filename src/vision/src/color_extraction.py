@@ -96,7 +96,7 @@ def find_object(image, display=False, publish=False, print_res=False):
             if cv2.contourArea(cntr) >= min_area:
                 found_object = dict()
 
-                epsilon = .01 * cv2.arcLength(cntr, True) #play around with this value- .018 on the blueprint side
+                epsilon = .1 * cv2.arcLength(cntr, True) #play around with this value- .018 on the blueprint side
                 approx = cv2.approxPolyDP(cntr, epsilon, True) #approx is a list of vertices of detected object
 
                 if len(approx)== 3: #3 vertices = triangle
