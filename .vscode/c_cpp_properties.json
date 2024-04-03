@@ -11,6 +11,8 @@
         "/home/yangziyi/capstone120/src/ar_track/ar_track_alvar/include/**",
         "/home/yangziyi/capstone120/src/realsense-ros/realsense2_camera/include/**",
         "/home/yangziyi/capstone120/src/sagittarius_pcks/sdk_sagittarius_arm/include/**",
+        "/home/yangziyi/capstone120/src/unitree_ros_to_real_new/unitree_legged_real/include/**",
+        "/home/yangziyi/capstone120/src/unitree_ros_to_real_new/unitree_legged_sdk/include/**",
         "/usr/include/**"
       ],
       "name": "ROS",
