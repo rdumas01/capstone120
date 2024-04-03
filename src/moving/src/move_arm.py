@@ -29,6 +29,7 @@ class move_arm_node:
         self.desk_height = 0.01 # 0.085
         self.pickup_offset = 0.04
         self.cube_height = 0.029
+        self.first_block = 0
 
         # define a dictionary to store box shapes dimensions
         self.shapes = {
@@ -147,6 +148,10 @@ class move_arm_node:
         self.lookout()
         self.drop()
 
+        
+
+
+
     # Iterate over the list of poses, shapes, and colors
         for item in self.poses_shapes_colors_config:
             pose, shape, color, config = item  # Unpack the tuple
@@ -193,9 +198,16 @@ class move_arm_node:
 
                     # if grabbed, return True, then exit while loop to execute drop_bloc
                     grabbed = self.check_closure()
-
+            
 
             if target_pose !=None:
+                if self.first_block==0:
+                    message_pub = rospy.Publisher("/pick_up_first_done", String, queue_size=10)
+                    rospy.loginfo("Notifying the quadruped to start.")
+                    message_pub.publish("gogo superdog!")
+                    rospy.loginfo("Waiting for the quadruped to finish walking.")
+                    rospy.wait_for_message("/quadruped_walk_done", String)
+                    self.first_block+=1
                 self.drop_goal(pose)
 
             # if(self.collision_check == 0):
@@ -739,9 +751,11 @@ if __name__ == "__main__":
     try:
         # 初始化ROS节点
 
+
         
         rospy.init_node('move_arm_node', anonymous=True)
 
+        
         rospy.wait_for_message("/start_topic", String)
         move_arm_node()
 
