@@ -29,6 +29,7 @@ class move_arm_node:
         self.desk_height = 0.01 # 0.085
         self.pickup_offset = 0.04
         self.cube_height = 0.029
+        self.first_block = 0
 
         # define a dictionary to store box shapes dimensions
         self.shapes = {
@@ -71,12 +72,41 @@ class move_arm_node:
         # Put arm in initial pose
         self.base_position()
 
+        ########################################
+        self.first_block = 0
+        self.quadruped_finished = False
+
+        # Initialize the publisher
+        self.message_pub = rospy.Publisher("/pick_up_first_done", String, queue_size=10)
+        
+        # Subscribe to the completion topic
+        self.done_sub = rospy.Subscriber("/quadruped_walk_done", String, self.quadruped_done_callback)
+        
+        # Rate of publishing
+        self.rate = rospy.Rate(10)
+        ###########################################
+
         self.main()
 
         # 关闭并退出moveit
         moveit_commander.roscpp_shutdown()
         moveit_commander.os._exit(0)
 
+    
+    def quadruped_done_callback(self, msg):
+        rospy.loginfo("Received quadruped walk done message.")
+        self.quadruped_finished = True
+
+    def notify_quadruped(self):
+        if self.first_block == 0:
+            rospy.loginfo("Notifying the quadruped to start.")
+            
+            while not self.quadruped_finished and not rospy.is_shutdown():
+                self.message_pub.publish("gogo superdog!")
+                rospy.loginfo("Waiting for the quadruped to finish walking.")
+                self.rate.sleep()
+            
+            self.first_block += 1
     
 
     def main(self):
@@ -208,6 +238,9 @@ class move_arm_node:
                 rospy.sleep(1)
                 ##################################
             if target_pose!=None:
+                
+                self.notify_quadruped()
+                    
                 self.drop_goal(step)
             # if(self.collision_check == 0):
             #     self.add_box(step, 'box')
