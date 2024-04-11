@@ -101,7 +101,7 @@ def find_object(image, display=False, publish=False, print_res=False):
 
                 if len(approx)== 3: #3 vertices = triangle
                     #calculating centroid, base and height of triangle
-                    (xc,zc), w, h, angle, third_point = find_triangle_details(approx)
+                    (xc,yc), w, h, angle, third_point = find_triangle_details(approx)
 
                     found_object['center'] = (xc, yc)
 
@@ -113,13 +113,13 @@ def find_object(image, display=False, publish=False, print_res=False):
 
                     # Draw angle on the image
                     angle_text = "{:.2f} deg".format(angle_degrees)
-                    cv2.putText(result, angle_text, (int(xc), int(zc)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 1, cv2.LINE_AA)
+                    cv2.putText(result, angle_text, (int(xc), int(yc)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 1, cv2.LINE_AA)
 
                     # Draw the centroid on the image
-                    cv2.circle(result, (int(xc), int(zc)), 5, (0, 0, 0), -1)
+                    cv2.circle(result, (int(xc), int(yc)), 5, (0, 0, 0), -1)
 
                     #Draw the axis - major axis only. No need to draw the minor
-                    cv2.line(result, (int(xc), int(zc)), (int(third_point[0]), int(third_point[1])), (255, 255, 0), 1, cv2.LINE_AA)
+                    cv2.line(result, (int(xc), int(yc)), (int(third_point[0]), int(third_point[1])), (255, 255, 0), 1, cv2.LINE_AA)
 
                     found_object['yaw'] = angle
                     found_object['shape'] = 'triangle'
@@ -146,7 +146,7 @@ def find_object(image, display=False, publish=False, print_res=False):
                     angle_text = "{:.2f} deg".format(angle_degree)
                     
                     #Display Angle on Image
-                    cv2.putText(result, angle_text, (int(xc), int(zc)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 1, cv2.LINE_AA)
+                    cv2.putText(result, angle_text, (int(xc), int(yc)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 1, cv2.LINE_AA)
 
                     #Display Contours
                     cv2.drawContours(result, [box], 0, color, 2)
