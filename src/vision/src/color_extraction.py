@@ -208,6 +208,7 @@ def color_def():
     green = {'name' : 'green', \
              'bgr' : (0, 255, 0), \
              'hsv' : [np.array([60, 40, 30]), np.array([90, 255, 250])]}
+            # 'hsv' : [np.array([60, 60, 40]), np.array([90, 255, 200])]}
     
     white = {'name' : 'white', \
              'bgr' : (255, 255, 255), \

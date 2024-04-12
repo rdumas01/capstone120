@@ -671,7 +671,8 @@
     </inertial>
   </link>
   <joint name="joint_usb_cam_frame" type="fixed">
-    <origin xyz="0.062 0.033 0.095" rpy="1.064 -1.516 0.551" />
+    <!-- <origin xyz="0.048 0.047 0.095" rpy="-1.62 -0.021 -1.517" /> -->
+    <origin xyz="0.063 0.033 0.100" rpy="-1.626 -0.028 -1.524" />
     <parent link="$(arg robot_name)/link6" />
     <child link="$(arg robot_name)/usb_cam_link" />
     <axis xyz="0 0 0" />

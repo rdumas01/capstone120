@@ -18,7 +18,7 @@ using namespace UNITREE_LEGGED_SDK;
 
 unitree_legged_msgs::HighCmd high_cmd_ros;
 geometry_msgs::Pose current_pose;
-bool stop_flag = false;
+bool stop_flag = true;
 bool yaw_flag = true;
 bool done_flag = false;
 
