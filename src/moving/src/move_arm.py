@@ -22,20 +22,28 @@ class move_arm_node:
 
 
     def __init__(self):
-        #######################################
-        # initialize box number
+
+        ######################################
+        # for arm initialize box number
         self.box_num  = 0
         self.collision_check = 0
         self.desk_height = 0.01 # 0.085
         self.pickup_offset = 0.04
         self.cube_height = 0.029
-        self.first_block = 0
-
         # define a dictionary to store box shapes dimensions
         self.shapes = {
             'box': [0.03, 0.03, 0.03],
             'rectangular': [0.09, 0.03, 0.03]
         }
+        #######################################
+        #for quadruped
+        self.pickup_pointx = 4.28
+        self.pickup_pointy = 2.78
+        self.drop_pointx = 3.28
+        self.drop_pointy = 2.78
+        self.reach_drop_point = False
+        self.reach_pickup_point = False
+        self.quadruped_finished = False
         #######################################
 
         # Initialize the API of move_group
@@ -72,12 +80,10 @@ class move_arm_node:
         # Put arm in initial pose
         self.base_position()
 
-        ########################################
-        self.first_block = 0
-        self.quadruped_finished = False
+        
 
         # Initialize the publisher
-        self.message_pub = rospy.Publisher("/pick_up_first_done", String, queue_size=10)
+        self.message_pub = rospy.Publisher("/arm_done", String, queue_size=10)
         
         # Subscribe to the completion topic
         self.done_sub = rospy.Subscriber("/quadruped_walk_done", String, self.quadruped_done_callback)
@@ -97,16 +103,27 @@ class move_arm_node:
         rospy.loginfo("Received quadruped walk done message.")
         self.quadruped_finished = True
 
-    def notify_quadruped(self):
-        if self.first_block == 0:
-            rospy.loginfo("Notifying the quadruped to start.")
+    def notify_quadruped_go_to_place_point(self):
+        if not self.reach_drop_point:
+            rospy.loginfo("Notifying the quadruped to start to go to the place point.")
             
             while not self.quadruped_finished and not rospy.is_shutdown():
-                self.message_pub.publish("gogo superdog!")
-                rospy.loginfo("Waiting for the quadruped to finish walking.")
+                self.message_pub.publish(f"goal:x={self.pickup_pointx}, y={self.pickup_pointy}")
+                rospy.loginfo("Waiting for the quadruped to finish walking(go to drop).")
                 self.rate.sleep()
             
-            self.first_block += 1
+            self.reach_drop_point = True
+
+    def notify_quadruped_go_to_pickup_point(self):
+        if not self.reach_pickup_point:
+            rospy.loginfo("Notifying the quadruped to start to go to the pickup point.")
+            
+            while not self.quadruped_finished and not rospy.is_shutdown():
+                self.message_pub.publish(f"goal:x={self.drop_pointx}, y={self.drop_pointy}")
+                rospy.loginfo("Waiting for the quadruped to finish walking(go to pickup).")
+                self.rate.sleep()
+            
+            self.reach_pickup_point = True
     
 
     def main(self):
@@ -237,11 +254,11 @@ class move_arm_node:
                 grabbed = self.check_closure()
                 rospy.sleep(1)
                 ##################################
-            if target_pose!=None:
                 
-                self.notify_quadruped()
-                    
+            if target_pose!=None:
+                               
                 self.drop_goal(step)
+                
             # if(self.collision_check == 0):
             #     self.add_box(step, 'box')
             #     rospy.sleep(1)
@@ -280,7 +297,15 @@ class move_arm_node:
                 rospy.sleep(.5)
                 ##################################
             if target_pose !=None:
+                self.reach_drop_point = False
+                self.quadruped_finished = False              
+                self.notify_quadruped_go_to_place_point() #if done then it would go down, otherwise keep staying in the function                 
                 self.drop_goal(pose)
+                rospy.sleep(10) #set up enough time for robot arm to drop
+                self.reach_pickup_point = False #turn false to go back to the pickup point
+                self.quadruped_finished = False
+                self.notify_quadruped_go_to_pickup_point() #it would not go down to the next loop until it go back
+                
             # if(self.collision_check == 0):
             #     self.add_box(step, 'box')
             #     rospy.sleep(1)

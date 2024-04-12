@@ -19,7 +19,6 @@ using namespace UNITREE_LEGGED_SDK;
 unitree_legged_msgs::HighCmd high_cmd_ros;
 geometry_msgs::Pose current_pose;
 bool stop_flag = true;
-bool yaw_flag = true;
 bool done_flag = false;
 
 // PID gains - Only Kp is used for proportional control
@@ -30,10 +29,15 @@ const double aKp = 1;
 const double aKi = 0.02;
 const double aKd = 0.0001;
 
+
 double integral_x = 0.0; // X方向的积分项
 double integral_y = 0.0; // Y方向的积分项
 double prev_error_x = 0.0; // 上一次X方向的误差
 double prev_error_y = 0.0; // 上一次Y方向的误差
+double receive_goal_pt_x = 4.28;
+double receive_goal_pt_y = 2.78;
+
+int counter = 0;
 
 
 void Init_param(){
@@ -118,8 +122,8 @@ void adjust_Yaw_and_velocity_TowardsGoal() {
     double integral_ang = 0;
     double prev_error_ang = 0;
 
-    const double goalPositionX = 4.28; // target x
-    const double goalPositionY = 2.78; // target y
+    const double goalPositionX = receive_goal_pt_x; // target x
+    const double goalPositionY = receive_goal_pt_y; // target y
     const double tolerance = 0.02; // tolerance for position
 
     // calculate error (absolute frame)
@@ -170,7 +174,7 @@ void adjust_Yaw_and_velocity_TowardsGoal() {
     } else {
         
         high_cmd_ros.mode = 2; // 移动模式
-        high_cmd_ros.gaitType = 2; // 自定义步态
+        high_cmd_ros.gaitType = 1; // 自定义步态
         high_cmd_ros.yawSpeed = std::min(std::max(angular_velocity, -0.5), 0.5); // 限制速度范围，避免超出最大速度}
         std::cout << "current angular velocity" << std::to_string(angular_velocity) << std::endl;
 
@@ -213,8 +217,23 @@ void commandCallback(const std_msgs::String::ConstPtr& msg){
 
 
 void armCallback(const std_msgs::String::ConstPtr& msg){
+    std::string command = msg->data;
+    std::cout << "Received command: " << command << std::endl;
     
-    stop_flag = false;
+    // assign x and y 
+    double goalX, goalY;
+    if (sscanf(command.c_str(), "goal:x=%lf, y=%lf", &goalX, &goalY) == 2) {
+        std::cout << "Parsed coordinates: x = " << goalX << ", y = " << goalY << std::endl;
+        done_flag = false;
+        receive_goal_pt_x = goalX;  //we change the goal point if we get one from move_arm.py, otherwise, we use the default one
+        receive_goal_pt_y = goalY;
+        stop_flag = false;  
+        
+    } else {
+        std::cout << "Failed to parse coordinates" << std::endl;
+        stop_flag = true;  // if failed, the robot would not move at all
+    }
+    
 }
 
 int main(int argc, char **argv)
@@ -227,7 +246,7 @@ int main(int argc, char **argv)
     std::cout << "at main function" << std::endl;
     ros::NodeHandle nh;
 
-    ros::Subscriber move_arm_sub = nh.subscribe("/pick_up_first_done", 500, armCallback);
+    ros::Subscriber move_arm_sub = nh.subscribe("/arm_done", 500, armCallback);//arm done could be drop or pickup
     ros::Publisher pub_back_to_arm = nh.advertise<std_msgs::String>("/quadruped_walk_done", 1000);
 
     Init_param();
@@ -242,7 +261,7 @@ int main(int argc, char **argv)
 
     ros::Rate loop_rate(500);
     while (ros::ok())
-    {
+    {   
         if (!stop_flag) {
             std::cout << "in the yaw loop" << std::endl;  
             adjust_Yaw_and_velocity_TowardsGoal();
@@ -258,11 +277,18 @@ int main(int argc, char **argv)
         }
 
         if(done_flag) {
+
             std_msgs::String msg;
-            msg.data = "Hello, ROS!";
+            msg.data = "Hello, arm, we reach the desired point!";
 
             // ROS_INFO("%s", msg.data.c_str());
             pub_back_to_arm.publish(msg);
+
+            counter++;
+            if(counter>500) {
+                done_flag = false;
+                counter = 0;
+            }
         }
 
         pub_high_command.publish(high_cmd_ros); // Publish the command
