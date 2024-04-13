@@ -101,7 +101,7 @@ def find_object(image, display=False, publish=False, print_res=False):
 
                 if len(approx)== 3: #3 vertices = triangle
                     #calculating centroid, base and height of triangle
-                    (xc,zc), w, h, angle, third_point = find_triangle_details(approx)
+                    (xc,yc), w, h, angle, third_point = find_triangle_details(approx)
 
                     found_object['center'] = (xc, yc)
 
@@ -113,13 +113,13 @@ def find_object(image, display=False, publish=False, print_res=False):
 
                     # Draw angle on the image
                     angle_text = "{:.2f} deg".format(angle_degrees)
-                    cv2.putText(result, angle_text, (int(xc), int(zc)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 1, cv2.LINE_AA)
+                    cv2.putText(result, angle_text, (int(xc), int(yc)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 1, cv2.LINE_AA)
 
                     # Draw the centroid on the image
-                    cv2.circle(result, (int(xc), int(zc)), 5, (0, 0, 0), -1)
+                    cv2.circle(result, (int(xc), int(yc)), 5, (0, 0, 0), -1)
 
                     #Draw the axis - major axis only. No need to draw the minor
-                    cv2.line(result, (int(xc), int(zc)), (int(third_point[0]), int(third_point[1])), (255, 255, 0), 1, cv2.LINE_AA)
+                    cv2.line(result, (int(xc), int(yc)), (int(third_point[0]), int(third_point[1])), (255, 255, 0), 1, cv2.LINE_AA)
 
                     found_object['yaw'] = angle
                     found_object['shape'] = 'triangle'
@@ -146,7 +146,7 @@ def find_object(image, display=False, publish=False, print_res=False):
                     angle_text = "{:.2f} deg".format(angle_degree)
                     
                     #Display Angle on Image
-                    cv2.putText(result, angle_text, (int(xc), int(zc)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 1, cv2.LINE_AA)
+                    cv2.putText(result, angle_text, (int(xc), int(yc)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 1, cv2.LINE_AA)
 
                     #Display Contours
                     cv2.drawContours(result, [box], 0, color, 2)
@@ -223,41 +223,41 @@ def get_orientation_and_shape(box, img=None):
 
 def find_triangle_details(approx):
     # Extract vertices and treat the coordinates as (x, z)
-    x1, z1 = approx[0][0]
-    x2, z2 = approx[1][0]
-    x3, z3 = approx[2][0]
+    x1, y1 = approx[0][0]
+    x2, y2 = approx[1][0]
+    x3, y3 = approx[2][0]
     
     # Calculate the centroid (CoM)
     G_x = (x1 + x2 + x3) / 3
-    G_z = (z1 + z2 + z3) / 3
+    G_y = (y1 + y2 + y3) / 3
     
     # calculate the distances (sides of the triangle)
-    side1 = np.linalg.norm(np.array([x1, z1]) - np.array([x2, z2]))
-    side2 = np.linalg.norm(np.array([x2, z2]) - np.array([x3, z3]))
-    side3 = np.linalg.norm(np.array([x3, z3]) - np.array([x1, z1]))
+    side1 = np.linalg.norm(np.array([x1, y1]) - np.array([x2, y2]))
+    side2 = np.linalg.norm(np.array([x2, y2]) - np.array([x3, y3]))
+    side3 = np.linalg.norm(np.array([x3, y3]) - np.array([x1, y1]))
     
     # Base is the longest of the three sides
-    sides = [(side1, (x1, z1), (x2, z2)), (side2, (x2, z2), (x3, z3)), (side3, (x3, z3), (x1, z1))]
+    sides = [(side1, (x1, y1), (x2, y2)), (side2, (x2, y2), (x3, y3)), (side3, (x3, y3), (x1, y1))]
     base, base_start, base_end = max(sides, key=lambda item: item[0])
     
     # Calculate the center of the base
     base_center = ((base_start[0] + base_end[0]) / 2, (base_start[1] + base_end[1]) / 2)
 
     # Find the 3rd point which is not part of the base
-    third_point = set([(x1, z1), (x2, z2), (x3, z3)]) - set([base_start, base_end])
+    third_point = set([(x1, y1), (x2, y2), (x3, y3)]) - set([base_start, base_end])
     third_point = list(third_point)[0]
     
     # Calculate the angle between center-third point line and the vertical axis -- angle of the height vector
     dx = third_point[0] - base_center[0]
-    dz = third_point[1] - base_center[1]
-    angle = (-atan2(dz, dx) - np.pi / 2) % np.pi
+    dy = third_point[1] - base_center[1]
+    angle = (-atan2(dy, dx) - np.pi / 2) % np.pi
     if angle >= 6 / 10 * np.pi:
         angle -= np.pi
     
     #height of the triangle
     height = np.linalg.norm(np.array(base_center) - np.array(third_point))
     
-    return (G_x, G_z), base, height, angle, third_point
+    return (G_x, G_y), base, height, angle, third_point
 
 
 def draw_axis(img, p_, q_, color, scale):

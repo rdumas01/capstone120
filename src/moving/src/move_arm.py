@@ -114,7 +114,7 @@ class move_arm_node:
         "
         '''
         # Define the relative path to the blueprint image
-        blueprint_filename = "blueprint_cube_rect.png"
+        blueprint_filename = "blueprint_ultimate_castle3.png"
         # blueprint_filename = "blueprint_cube_rect.png"
         # Get the directory where the script is located
         script_dir = os.path.dirname(__file__)
@@ -124,32 +124,32 @@ class move_arm_node:
         # Use the constructed path in the find_object function
         found_object_results = find_object(blueprint_path)
         
-        ## Very important - for the "cube_only", use pixel_to_m = .029/144. For "cube_rect", use pixel_to_m = .029/182
-        sequential_blocks = build_castle(found_object_results,pixel_to_m=.029/144, y_offset=0.150)
+        ## Very important - Need to set pixel_to_m value properly
+        sequential_blocks = build_castle(found_object_results,pixel_to_m=.029/150, y_offset=0.2)
         # sequential_blocks = build_castle(found_object_results,pixel_to_m=.029/144, y_offset=0.150)
         flattened_blocks = flatten_layers(sequential_blocks)
         final_list=flattened_blocks
 
         #pose_list,shape_list,color_list
-        poses_colors_shape_config = create_poses_colors_shape_list(final_list)
+        poses_colors_shape = create_poses_colors_shape_list(final_list)
         plot_castle_structure(final_list)
         # rospy.logerr(poses_colors_shape)
         #  pose_list, shape_list, color_list
-        return poses_colors_shape_config
+        return poses_colors_shape
 
     
     def execute_all(self):
     # Use from_blue_print2 to get poses, shapes, and colors
-        self.poses_shapes_colors_config = self.from_blue_print()
+        self.poses_shapes_colors = self.from_blue_print()
         rospy.loginfo('Entering main loop...')
 
         # Prepare the robot arm and gripper
-        self.lookout()
+        self.base_position()
         self.drop()
 
     # Iterate over the list of poses, shapes, and colors
-        for item in self.poses_shapes_colors_config:
-            pose, shape, color, config = item  # Unpack the tuple
+        for item in self.poses_shapes_colors:
+            pose, shape, color = item  # Unpack the tuple
 
             grabbed = False
             while not grabbed:
@@ -157,7 +157,7 @@ class move_arm_node:
                 ################################### 
                 target_pose = self.look_around(color=color, shape=shape)
                 self.drop()
-                self.pickup_from_above(target_pose) #picks up the object and returns to base position
+                self.pickup_from_above(target_pose, shape = shape) #picks up the object and returns to base position
                 # rospy.sleep(.1)
 
                 # if grabbed, return True, then exit while loop to execute drop_bloc
@@ -165,17 +165,12 @@ class move_arm_node:
                 # rospy.sleep(.1)
                 ##################################
             
-            # We have to perform these extra steps for objects of "extra" configuration
-            # "extra" includes triangular objects and rectangular objects that are placed vertically
-            # The reason is that the camera sees the object from top view, while blueprint sees it from the front view
-            # These extra steps allow the user to adjust the object manually to be received by the amr properly.
             
-            if config == 'extra':
-                self.base_position() #Just for safety start at base position
-                self.base_ground_position() #Lower the gripper to where the object needs to be dropped (the table)
+            if shape == 'triangle':
+                #self.base_position() #Just for safety start at base position
+                #self.base_ground_position() #Lower the gripper to where the object needs to be dropped (the table)
                 self.drop() #open the gripper to drop this object
-
-                self.base_position() #go back to base position
+                #self.base_position() #go back to base position
 
                 #At this point, the user will take the object and manually change its orientation to vertical ('upright mode')
                 rospy.sleep(5)
@@ -184,7 +179,7 @@ class move_arm_node:
                 
                 while not grabbed:
                     #Now the camera will look for the object from the base position and return its pose
-                    #color is not important here since there will be only one object in the view
+                    #shape is not important here since there will be only one object in the view
                     find_pose = get_target_pose(color = color, shape = None) 
                     find_pose_copy = deepcopy(find_pose) 
 
@@ -210,38 +205,22 @@ class move_arm_node:
     
     def drop_try(self):
         self.base_position() #Just for safety start at base position
-        self.base_ground_position() #Lower the gripper to where the object needs to be dropped (the table)
         self.drop()
         
-        # place_pose = Pose()
+        place_pose = Pose()
 
-        # place_pose.position.x = 0.4
-        # place_pose.position.y = 0.4
-        # place_pose.position.z = 0.01
+        place_pose.position.x = 0.3
+        place_pose.position.y = 0.2
+        place_pose.position.z = 0.128
 
-        # place_pose.orientation.w= 0.707
-        # place_pose.orientation.x= 0
-        # place_pose.orientation.y= 0.707
-        # place_pose.orientation.z= 0
-        
-        # #rotate the pitch of the arm and go at a point near the base of the arm
-        # place_pose = self.rotate_pitch(place_pose,-np.pi/2) 
-        # self.arm.set_joint_value_target(place_pose, True)
-        # self.arm.go()
+        place_pose.orientation.w= 0.7
+        place_pose.orientation.x= 0
+        place_pose.orientation.y= 0
+        place_pose.orientation.z= 0.7
 
-        #Now, go to the pick-up site
-        #place_pose.position.x = 0.250
-        #place_pose.position.y = 0.250
-        #place_pose.position.z = 0.2
-
-        #place_pose = self.rotate_pitch(place_pose,0) 
-
-        #self.arm.set_joint_value_target(place_pose, True)
-        #self.arm.go()
+        self.drop_goal(place_pose)
 
 
-
-        #self.base_position() #go back to base position
     
     def look_around(self, color : str = None, shape : str = None):
         target_pose = None
@@ -317,7 +296,6 @@ class move_arm_node:
     def actions_dict(self):
         #both execute_all2 and look_around2 are placeholders and will eventually replace execute_all and look_around
         execute_action = {'drop' : self.drop,
-                          'lookout' : self.lookout,
                           'lookaround' : self.look_around,
                           'sleep' : self.sleep,
                           'RRTpickup' : self.pickup_by_rrt,
@@ -403,14 +381,13 @@ class move_arm_node:
         return pose
 
 
-    def pickup_from_above(self,target_pose: Pose = None):
+    def pickup_from_above(self,target_pose: Pose = None, shape: String = None):
 
         if target_pose is None:
             self.base_position()
             rospy.logerr("None is sent to pickup_from_above")
             return True
         try:    
-            #target_pose : Pose = get_target_pose("green")
             self.arm.set_planner_id("RRTConnect")
 
             # Step 1: Open gripper
@@ -419,16 +396,16 @@ class move_arm_node:
             # rospy.sleep(.1)
 
             # Step 2: Place gripper above target
-            target_pose = self.rotate_pose(target_pose, np.pi/2) #This changes the yaw angle by 90 degrees
+
+            target_pose = self.rotate_pose(target_pose, np.pi/2) #This changes the yaw angle by 90 degrees and grabs the object by minor axis
             target_pose.position.z += self.desk_height + self.pickup_offset
             self.arm.set_joint_value_target(target_pose, True)
             self.arm.go(wait=True)
-            
+        
             # Step 3: Lower the gripper to target
             target_pose.position.z -= self.pickup_offset
             self.arm.set_joint_value_target(target_pose, True)
             self.arm.go()
-            # rospy.sleep(.1)
 
             # Step 4: Close gripper
             self.gripper.set_joint_value_target([-0.027, -0.027])
@@ -436,32 +413,31 @@ class move_arm_node:
             self.gripper.stop()
             rospy.sleep(1.3)
 
-            # open
-            self.gripper.set_named_target("open")
-            self.gripper.go()
-            rospy.sleep(.5)
+            if shape == 'cube':
+                # Step 5 - open gripper
+                self.gripper.set_named_target("open")
+                self.gripper.go()
+                rospy.sleep(.5)
 
-            #change orientation and close again
+                # Step 6 - change orientation of specific joints only (joints 2 and 6)
+                joint_positions = self.arm.get_current_joint_values()
+                joint6_index = self.arm.get_active_joints().index('joint6')
+                joint2_index = self.arm.get_active_joints().index('joint2')
+                
+                joint_positions[joint2_index] += 0.05
+                self.arm.set_joint_value_target(joint_positions)
+                self.arm.go()
 
-            # target_pose = self.rotate_pose(target_pose, -np.pi/2)
-            # self.arm.set_joint_value_target(target_pose, True)
-            joint_positions = self.arm.get_current_joint_values()
-            joint6_index = self.arm.get_active_joints().index('joint6')
-            joint2_index = self.arm.get_active_joints().index('joint2')
-            
-            joint_positions[joint2_index] += 0.05
-            self.arm.set_joint_value_target(joint_positions)
-            self.arm.go()
+                joint_positions[joint6_index] -= np.pi/2
+                self.arm.set_joint_value_target(joint_positions)
+                self.arm.go()
+                # rospy.sleep(.1)
+                #rospy.sleep(1)
 
-            joint_positions[joint6_index] -= np.pi/2
-            self.arm.set_joint_value_target(joint_positions)
-            self.arm.go()
-            # rospy.sleep(.1)
-            #rospy.sleep(1)
-
-            self.gripper.set_joint_value_target([-0.027, -0.027])
-            self.gripper.go()
-            rospy.sleep(1.3)
+                #Close Gripper
+                self.gripper.set_joint_value_target([-0.027, -0.027])
+                self.gripper.go()
+                rospy.sleep(1.3)
 
             # Step 5: Get back up
             target_pose.position.z += self.desk_height + self.pickup_offset
@@ -477,7 +453,6 @@ class move_arm_node:
         return True 
 
 
-
     def pickup_by_rrt(self,target_pose):
         max_attempts = 3  
         attempt = 0
@@ -491,18 +466,6 @@ class move_arm_node:
                     self.arm.set_planner_id(planner)  # try different planner
                     self.arm.set_planning_time(1)  # 
 
-                    # initialize again to avoid previous action was not done
-                    
-                    # self.gripper.set_joint_value_target([-0.007, -0.007])
-                    # self.gripper.go()
-                
-                    #self.arm.clear_pose_targets()
-                    # target_pose = rospy.wait_for_message("/cap120/drop_goal", Pose, timeout=5)
-                    
-                    #target_pose_stamped = PoseStamped()
-                    #target_pose_stamped.header.frame_id = "world"
-                    #target_pose_stamped.header.stamp = rospy.Time.now()
-                    #target_pose_stamped.pose = target_pose
                     target_pose.position.z = self.desk_height
                     #self.arm.set_pose_target(target_pose_stamped)
                     target_pose.position.z += 0.15 
@@ -573,26 +536,10 @@ class move_arm_node:
                     # set plannar
                     target_pose_copy = target_pose
                     self.arm.set_planner_id(planner)  # try different planner
-                    self.arm.set_planning_time(0.5)  # 
-
-                    # initialize again to avoid previous action was not done
-                    
-                    # self.gripper.set_joint_value_target([-0.007, -0.007])
-                    # self.gripper.go()
-                    # target_pose = rospy.wait_for_message("/cap120/drop_goal", Pose, timeout=5)
-                    
-                    #target_pose_stamped = PoseStamped()
-                    #target_pose_stamped.header.frame_id = "world"
-                    #target_pose_stamped.header.stamp = rospy.Time.now()
-                    #target_pose_stamped.pose = target_pose
+                    self.arm.set_planning_time(2)  # 
                     
                     target_pose_copy.position.z += self.desk_height
-                    #self.arm.set_pose_target(target_pose_stamped)
                     target_pose_copy.position.z += self.pickup_offset/2
-                    target_pose_copy.orientation.w = 0.707
-                    target_pose_copy.orientation.x = 0
-                    target_pose_copy.orientation.y = 0.707
-                    target_pose_copy.orientation.z = 0
                     self.arm.set_joint_value_target(target_pose_copy, True)
                     
                     #Just replace "group.set_pose_target(pose_goal)" line with "group.set_joint_value_target(pose_goal, True)" 
@@ -626,7 +573,7 @@ class move_arm_node:
                 #     self.collision_check = 1
                 
                 # go back
-                # rospy.sleep(.1)
+                rospy.sleep(1)
                 self.gripper.set_named_target('open')
                 self.gripper.go()
                 target_pose_copy.position.z += self.pickup_offset*2
@@ -694,13 +641,6 @@ class move_arm_node:
 
         self.gripper.set_named_target('open')
         self.gripper.go()
-
-        return True
-
-
-    def lookout(self):
-        
-        self.base_position()
 
         return True
 

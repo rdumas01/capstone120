@@ -283,7 +283,7 @@ def determine_shape(width, height, depth):
         
         return "unknown"
 
-def build_castle(found_objects, pixel_to_m, y_offset, x_offset=0.155,z_offset=0, z_tolerance=0.005, depth=.029):
+def build_castle(found_objects, pixel_to_m, y_offset, x_offset=0.25,z_offset=0.0718, z_tolerance=0.005, depth=.029):
     """
     Simulates the building process of a castle based on the detected objects, grouping blocks into layers.
     Additionally, calculates the shape of each block based on its dimensions.
@@ -317,32 +317,26 @@ def build_castle(found_objects, pixel_to_m, y_offset, x_offset=0.155,z_offset=0,
 
         obj['shape'] = obj_shape
 
-        # Calculating the configuration for dropping various objects
-        # Configuration determines what steps to follow when dropping the object at desired location
-        # "normal"- Object is picked up and then moved to the desired location
-        # "extra" - Requires extra steps for dropping
+        # Setting orientation of the gripper when dropping an object on the castle 
         if obj_shape == 'cube':
-                obj['config'] = 'normal'
+                x,y,z,w = tf.transformations.quaternion_from_euler(0, np.pi/2, 0)
         elif obj_shape== 'rect':
             if obj['width']>obj['height']: #represents object standing horizontally
-                obj['config'] = 'normal'
+                x,y,z,w = tf.transformations.quaternion_from_euler(0, np.pi/2, 0)
             else:
-                obj['config'] = 'extra' #represents object standing vertically
+                x,y,z,w = tf.transformations.quaternion_from_euler(0, 0, np.pi/2)
         elif obj_shape== 'long':
             if obj['width']>obj['height']: #represents object standing horizontally
-                obj['config'] = 'normal'
+                x,y,z,w = tf.transformations.quaternion_from_euler(0, np.pi/2, 0)
             else:
-                obj['config'] = 'extra' #represents object standing vertically
+                x,y,z,w = tf.transformations.quaternion_from_euler(0, 0, np.pi/2)
         elif obj_shape == 'triangle':
-            obj['config'] = 'extra'
-        
-        # This is the orientation of the gripper when it is dropped 
-        # This value remains constant in all cases since we don't to play around with orientation of the gripper too much
-        x,y,z,w = tf.transformations.quaternion_from_euler(0, np.pi/2, 0)
-        obj['quaternion_w'] = w
+            x,y,z,w = tf.transformations.quaternion_from_euler(0, np.pi/2, 0)
+
         obj['quaternion_x'] = x
         obj['quaternion_y'] = y
         obj['quaternion_z'] = z
+        obj['quaternion_w'] = w
 
     # Sort the blocks based on their z-coordinate in ascending order
     sorted_blocks = sorted(blocks, key=lambda x: x[1]['center'][2])
@@ -375,7 +369,6 @@ def build_castle(found_objects, pixel_to_m, y_offset, x_offset=0.155,z_offset=0,
             'height': obj['height'],
             'depth': obj['depth'],
             'shape': obj['shape'],
-            'config': obj['config'],
             'geometry': obj['geometry']
         })
 
@@ -544,9 +537,9 @@ def plot_castle_structure(flattened_blocks):
     ax.set_zlabel('Z axis (m)')
     ax.set_title('3D Castle Plot')
 
-    ax.set_xlim(0.150,0.350)
-    ax.set_ylim(0.0,0.20)
-    ax.set_zlim(0.0,0.20)
+    ax.set_xlim(0.150,0.400)
+    ax.set_ylim(0.0,0.250)
+    ax.set_zlim(0.0,0.250)
     plt.show()
 
 
@@ -568,10 +561,9 @@ def create_poses_colors_shape_list(final_list):
 
         shape = obj['shape']
         color = obj['color']
-        config = obj ['config']
         
         # Combine place_pose, shape, and color into a tuple and add it to the poses list
-        info = (place_pose, shape, color, config)
+        info = (place_pose, shape, color)
         poses_colors_shape.append(info)
     
     return poses_colors_shape
@@ -580,7 +572,7 @@ def create_poses_colors_shape_list(final_list):
 if __name__ == '__main__':
 
     # Define the relative path to the blueprint image
-    blueprint_filename = "blueprint_cube_rect.png"
+    blueprint_filename = "blueprint_ultimate_castle3.png"
     # Get the directory where the script is located
     script_dir = os.path.dirname(__file__)
     # Construct the full path to the blueprint image
@@ -591,8 +583,8 @@ if __name__ == '__main__':
     #print(found_object_results)
     
     #Create a sequential list of blocks
-    sequential_blocks = build_castle(found_object_results,pixel_to_m=0.029/144, y_offset=0.155)
-    print(sequential_blocks)
+    sequential_blocks = build_castle(found_object_results,pixel_to_m=0.029/150, y_offset=0.155)
+    #print(sequential_blocks)
 
     #You can perform stability analysis any two sequential layers (e.g. Layer 2 on Layer 1, Layer 3 on Layer 2, Layer 4 on Layer 3 etc.)
     #layer_2_blocks = sequential_blocks['Layer 2']
