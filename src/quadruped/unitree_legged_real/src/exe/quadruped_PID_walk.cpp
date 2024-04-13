@@ -23,19 +23,22 @@ bool done_flag = false;
 
 // PID gains - Only Kp is used for proportional control
 const double Kp = 0.5; // 比例增益
-const double Ki = 0.0001; // 积分增益
-const double Kd = 0.05;
+const double xKi = 0.0001; // 积分增益
+const double yKi = 0.0002;
+const double xKd = 0.05;
+const double yKd = 0.07;
 const double aKp = 1;
-const double aKi = 0.02;
+const double aKi = 0.03;
 const double aKd = 0.0001;
-
-
+const double threshold_vel = 0.6;
+const double threshold_ang_val = 0.5;
 double integral_x = 0.0; // X方向的积分项
 double integral_y = 0.0; // Y方向的积分项
 double prev_error_x = 0.0; // 上一次X方向的误差
 double prev_error_y = 0.0; // 上一次Y方向的误差
 double receive_goal_pt_x = 4.28;
 double receive_goal_pt_y = 2.78;
+double receive_goal_pt_yaw = 0*3.1415926/180;
 
 int counter = 0;
 
@@ -103,7 +106,7 @@ double getYawFromQuaternion(const geometry_msgs::Quaternion& quat) {
 
 void adjust_Yaw_and_velocity_TowardsGoal() {
     const double ang_tolerance = M_PI/1000; // Goal tolerance
-    const double targetyaw = 9*M_PI/180; // 示例目标偏航角
+    const double targetyaw = receive_goal_pt_yaw; // 示例目标偏航角
     double currentyaw = getYawFromQuaternion(current_pose.orientation);
     if(std::isnan(currentyaw)) {
         
@@ -115,7 +118,7 @@ void adjust_Yaw_and_velocity_TowardsGoal() {
     // std::cout << "MPI" << M_PI << std::endl;
     // std::cout << "currentyaw - MPI = " << currentyaw - M_PI<<std::endl;
     // // wrapTiPi make sure it is inside the range [-π, π]
-    currentyaw += M_PI; 
+    currentyaw += (M_PI - M_PI*9/180); 
     double yawtogo = wrapToPi(targetyaw - currentyaw);
     std::cout<< "yaw to go = " << yawtogo <<std::endl;
     
@@ -155,8 +158,8 @@ void adjust_Yaw_and_velocity_TowardsGoal() {
     prev_error_ang = yawtogo;
 
     // 计算PID控制下的速度
-    double velocity_x = Kp * robot_x_error + Ki * integral_x + Kd * derivative_x;
-    double velocity_y = Kp * robot_y_error + Ki * integral_y + Kd * derivative_y;
+    double velocity_x = Kp * robot_x_error + xKi * integral_x + xKd * derivative_x;
+    double velocity_y = Kp * robot_y_error + yKi * integral_y + yKd * derivative_y;
     double angular_velocity = aKp * yawtogo + aKi * integral_ang + aKd * derivative_ang;
     
 
@@ -175,11 +178,11 @@ void adjust_Yaw_and_velocity_TowardsGoal() {
         
         high_cmd_ros.mode = 2; // 移动模式
         high_cmd_ros.gaitType = 1; // 自定义步态
-        high_cmd_ros.yawSpeed = std::min(std::max(angular_velocity, -0.5), 0.5); // 限制速度范围，避免超出最大速度}
+        high_cmd_ros.yawSpeed = std::min(std::max(angular_velocity, -threshold_ang_val), threshold_ang_val); // 限制速度范围，避免超出最大速度}
         std::cout << "current angular velocity" << std::to_string(angular_velocity) << std::endl;
 
-        high_cmd_ros.velocity[0] = std::min(std::max(velocity_x, -0.6), 0.6); // 限制速度范围，避免超出最大速度
-        high_cmd_ros.velocity[1] = std::min(std::max(velocity_y, -0.6), 0.6); // 限制速度范围，避免超出最大速度
+        high_cmd_ros.velocity[0] = std::min(std::max(velocity_x, -threshold_vel), threshold_vel); // 限制速度范围，避免超出最大速度
+        high_cmd_ros.velocity[1] = std::min(std::max(velocity_y, -threshold_vel), threshold_vel); // 限制速度范围，避免超出最大速度
         
         std::cout << "velocity_x = " << velocity_x << std::endl;
         std::cout << "velocity_y = " << velocity_y << std::endl;
@@ -222,11 +225,13 @@ void armCallback(const std_msgs::String::ConstPtr& msg){
     
     // assign x and y 
     double goalX, goalY;
-    if (sscanf(command.c_str(), "goal:x=%lf, y=%lf", &goalX, &goalY) == 2) {
-        std::cout << "Parsed coordinates: x = " << goalX << ", y = " << goalY << std::endl;
+    double goalyaw;
+    if (sscanf(command.c_str(), "goal:x=%lf, y=%lf, yaw=%lf", &goalX, &goalY, &goalyaw) == 3) {
+        std::cout << "Parsed coordinates: x = " << goalX << ", y = " << goalY << ", yaw = " << goalyaw << std::endl;
         done_flag = false;
         receive_goal_pt_x = goalX;  //we change the goal point if we get one from move_arm.py, otherwise, we use the default one
         receive_goal_pt_y = goalY;
+        receive_goal_pt_yaw = goalyaw;
         stop_flag = false;  
         
     } else {
@@ -271,7 +276,7 @@ int main(int argc, char **argv)
 
         if(stop_flag==true) {
             std::cout << "robot stop" << std::endl;
-            high_cmd_ros.mode = 0; // 空闲，默认站立
+            high_cmd_ros.mode = 5; // 空闲，默认站立
             high_cmd_ros.velocity[0] = 0.0;
             high_cmd_ros.velocity[1] = 0.0;
         }

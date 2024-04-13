@@ -37,10 +37,12 @@ class move_arm_node:
         }
         #######################################
         #for quadruped
-        self.pickup_pointx = 4.28
-        self.pickup_pointy = 2.78
-        self.drop_pointx = 3.28
-        self.drop_pointy = 2.78
+        self.pickup_pointx = 2.022 
+        self.pickup_pointy = 1.738 
+        self.pickup_yaw = -90*3.1415926535/180
+        self.drop_pointx = 3.952
+        self.drop_pointy = 2.566
+        self.drop_yaw = 0
         self.reach_drop_point = False
         self.reach_pickup_point = False
         self.quadruped_finished = False
@@ -108,7 +110,7 @@ class move_arm_node:
             rospy.loginfo("Notifying the quadruped to start to go to the place point.")
             
             while not self.quadruped_finished and not rospy.is_shutdown():
-                self.message_pub.publish(f"goal:x={self.pickup_pointx}, y={self.pickup_pointy}")
+                self.message_pub.publish(f"goal:x={self.drop_pointx}, y={self.drop_pointy}, yaw={self.drop_yaw}")
                 rospy.loginfo("Waiting for the quadruped to finish walking(go to drop).")
                 self.rate.sleep()
             
@@ -119,7 +121,7 @@ class move_arm_node:
             rospy.loginfo("Notifying the quadruped to start to go to the pickup point.")
             
             while not self.quadruped_finished and not rospy.is_shutdown():
-                self.message_pub.publish(f"goal:x={self.drop_pointx}, y={self.drop_pointy}")
+                self.message_pub.publish(f"goal:x={self.pickup_pointx}, y={self.pickup_pointy}, yaw={self.pickup_yaw}")
                 rospy.loginfo("Waiting for the quadruped to finish walking(go to pickup).")
                 self.rate.sleep()
             
