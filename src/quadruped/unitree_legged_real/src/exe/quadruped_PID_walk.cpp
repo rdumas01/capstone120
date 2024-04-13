@@ -1,5 +1,6 @@
 
 #include <ros/ros.h>
+
 #include <unitree_legged_msgs/HighCmd.h>
 #include <unitree_legged_msgs/HighState.h>
 #include "unitree_legged_sdk/unitree_legged_sdk.h"
@@ -20,15 +21,16 @@ unitree_legged_msgs::HighCmd high_cmd_ros;
 geometry_msgs::Pose current_pose;
 bool stop_flag = true;
 bool done_flag = false;
+bool call_stand_up = false;
 
 // PID gains - Only Kp is used for proportional control
 const double Kp = 0.5; // 比例增益
 const double xKi = 0.0001; // 积分增益
 const double yKi = 0.0002;
 const double xKd = 0.05;
-const double yKd = 0.07;
+const double yKd = 0.12;
 const double aKp = 1;
-const double aKi = 0.03;
+const double aKi = 0.05;
 const double aKd = 0.0001;
 const double threshold_vel = 0.6;
 const double threshold_ang_val = 0.5;
@@ -41,6 +43,8 @@ double receive_goal_pt_y = 2.78;
 double receive_goal_pt_yaw = 0*3.1415926/180;
 
 int counter = 0;
+int counter2 = 0;
+int counter3 = 0;
 
 
 void Init_param(){
@@ -110,7 +114,8 @@ void adjust_Yaw_and_velocity_TowardsGoal() {
     double currentyaw = getYawFromQuaternion(current_pose.orientation);
     if(std::isnan(currentyaw)) {
         
-        high_cmd_ros.mode = 2; // 空闲，默认站立
+        high_cmd_ros.mode = 0; // 空闲，默认站立
+        high_cmd_ros.gaitType = 1; // 自定义步态
         high_cmd_ros.velocity[0] = 0.0;
         high_cmd_ros.velocity[1] = 0.0;
     }else {
@@ -141,16 +146,20 @@ void adjust_Yaw_and_velocity_TowardsGoal() {
     // define how much robot need to go (robot frame)
     double robot_x_error = error_x * cos(currentyaw) + error_y * sin(currentyaw);
     double robot_y_error = -error_x * sin(currentyaw) + error_y * cos(currentyaw); 
-
+    // std::cout << "robot_y_error = "<< robot_y_error << std::endl;
     // integrate errors
-    integral_x += robot_x_error;
-    integral_y += robot_y_error;
-    integral_ang += yawtogo;
+    
+    integral_x = 0.7*integral_x + robot_x_error;
+    integral_y = 0.7*integral_y + robot_y_error;
+    integral_ang = 0.7*integral_ang + yawtogo;
+    // std::cout << "integral y = "<< integral_y << std::endl;
+    
 
     // 计算误差的变化率（微分项）
     double derivative_x = robot_x_error - prev_error_x;
     double derivative_y = robot_y_error - prev_error_y;
     double derivative_ang = yawtogo - prev_error_ang;
+    // std::cout << "derivative_y = "<< derivative_y << std::endl;
 
     //record current error as next step prev_error
     prev_error_x = robot_x_error;
@@ -168,12 +177,26 @@ void adjust_Yaw_and_velocity_TowardsGoal() {
 
     
     if(fabs(robot_x_error) < tolerance && fabs(robot_y_error) < tolerance && std::abs(yawtogo) < ang_tolerance) {
-        stop_flag = true;
+       
+        
         high_cmd_ros.mode = 0; // 空闲，默认站立
         high_cmd_ros.velocity[0] = 0.0;
         high_cmd_ros.velocity[1] = 0.0;
+        
+        counter2 = 0;
         done_flag = true;
-        stop_flag = true;
+        
+        if(!stop_flag && counter3 < 2000) {
+            std::cout << "robot stop" << std::endl;
+            high_cmd_ros.mode = 0; // 空闲，默认
+            high_cmd_ros.velocity[0] = 0.0;
+            high_cmd_ros.velocity[1] = 0.0;
+            if(counter3>=2000) {
+                stop_flag = true;
+            }
+            counter3++;
+        }
+        
     } else {
         
         high_cmd_ros.mode = 2; // 移动模式
@@ -213,6 +236,7 @@ void commandCallback(const std_msgs::String::ConstPtr& msg){
         std::cout << "go1 stop" << std::endl;
         high_cmd_ros.mode = 0; // idle, default stand
         high_cmd_ros.velocity[0] = 0.0; // stop
+        high_cmd_ros.velocity[1] = 0.0; // stop
     }
     
 
@@ -232,7 +256,10 @@ void armCallback(const std_msgs::String::ConstPtr& msg){
         receive_goal_pt_x = goalX;  //we change the goal point if we get one from move_arm.py, otherwise, we use the default one
         receive_goal_pt_y = goalY;
         receive_goal_pt_yaw = goalyaw;
-        stop_flag = false;  
+        call_stand_up = true;
+        
+        stop_flag = false; 
+         
         
     } else {
         std::cout << "Failed to parse coordinates" << std::endl;
@@ -242,7 +269,9 @@ void armCallback(const std_msgs::String::ConstPtr& msg){
 }
 
 int main(int argc, char **argv)
-{
+{   
+
+    
     ros::init(argc, argv, "command_listener");
     std::cout << "WARNING: Control level is set to HIGH-level." << std::endl
               << "Make sure the robot is standing on the ground." << std::endl
@@ -267,21 +296,17 @@ int main(int argc, char **argv)
     ros::Rate loop_rate(500);
     while (ros::ok())
     {   
-        if (!stop_flag) {
-            std::cout << "in the yaw loop" << std::endl;  
-            adjust_Yaw_and_velocity_TowardsGoal();
-        }
-        
-        ros::spinOnce();
+    
 
-        if(stop_flag==true) {
-            std::cout << "robot stop" << std::endl;
+        if(stop_flag) {
+            
+            std::cout << "robot go down" << std::endl;
             high_cmd_ros.mode = 5; // 空闲，默认站立
             high_cmd_ros.velocity[0] = 0.0;
             high_cmd_ros.velocity[1] = 0.0;
         }
 
-        if(done_flag) {
+        if(done_flag && counter2 == 0) {
 
             std_msgs::String msg;
             msg.data = "Hello, arm, we reach the desired point!";
@@ -293,8 +318,47 @@ int main(int argc, char **argv)
             if(counter>500) {
                 done_flag = false;
                 counter = 0;
+                counter3 = 0;
             }
         }
+
+        if (call_stand_up && counter2<1000) {
+            high_cmd_ros.mode = 6;
+            high_cmd_ros.velocity[0] = 0.0;
+            high_cmd_ros.velocity[1] = 0.0;
+            counter2++;
+        }
+        if (counter2>=1000 && counter2<1500) {
+            high_cmd_ros.mode = 0; // 空闲，默认站立
+            high_cmd_ros.velocity[0] = 0.0;
+            high_cmd_ros.velocity[1] = 0.0;
+            counter2++;
+        }
+        if (counter2>=1500 && counter2<2000) {
+            high_cmd_ros.mode = 2; // 空闲，默认站立
+            high_cmd_ros.gaitType = 1; // 自定义步态
+            high_cmd_ros.velocity[0] = 0.0;
+            high_cmd_ros.velocity[1] = 0.0;
+            counter2++;
+        }
+        if (counter2>=2000)
+        {
+            if (!stop_flag) {
+            std::cout << "in the velocity and the yaw loop" << std::endl;  
+            adjust_Yaw_and_velocity_TowardsGoal();
+            }
+            
+            call_stand_up=false;
+        }
+        
+        
+
+        
+        ros::spinOnce();
+
+        
+
+        
 
         pub_high_command.publish(high_cmd_ros); // Publish the command
         

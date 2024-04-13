@@ -302,6 +302,7 @@ class move_arm_node:
                 self.reach_drop_point = False
                 self.quadruped_finished = False              
                 self.notify_quadruped_go_to_place_point() #if done then it would go down, otherwise keep staying in the function                 
+                rospy.sleep(2)
                 self.drop_goal(pose)
                 rospy.sleep(10) #set up enough time for robot arm to drop
                 self.reach_pickup_point = False #turn false to go back to the pickup point
