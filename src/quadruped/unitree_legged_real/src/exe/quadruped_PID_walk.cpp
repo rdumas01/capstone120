@@ -109,7 +109,7 @@ double getYawFromQuaternion(const geometry_msgs::Quaternion& quat) {
 // }
 
 void adjust_Yaw_and_velocity_TowardsGoal() {
-    const double ang_tolerance = M_PI/1000; // Goal tolerance
+    const double ang_tolerance = M_PI*5/1000; // Goal tolerance
     const double targetyaw = receive_goal_pt_yaw; // 示例目标偏航角
     double currentyaw = getYawFromQuaternion(current_pose.orientation);
     if(std::isnan(currentyaw)) {
@@ -123,7 +123,8 @@ void adjust_Yaw_and_velocity_TowardsGoal() {
     // std::cout << "MPI" << M_PI << std::endl;
     // std::cout << "currentyaw - MPI = " << currentyaw - M_PI<<std::endl;
     // // wrapTiPi make sure it is inside the range [-π, π]
-    currentyaw += (M_PI - M_PI*9/180); 
+    // currentyaw += (M_PI - M_PI*9/180); 
+    currentyaw += M_PI; 
     double yawtogo = wrapToPi(targetyaw - currentyaw);
     std::cout<< "yaw to go = " << yawtogo <<std::endl;
     
@@ -132,7 +133,7 @@ void adjust_Yaw_and_velocity_TowardsGoal() {
 
     const double goalPositionX = receive_goal_pt_x; // target x
     const double goalPositionY = receive_goal_pt_y; // target y
-    const double tolerance = 0.02; // tolerance for position
+    const double tolerance = 0.05; // tolerance for position
 
     // calculate error (absolute frame)
     double error_x = goalPositionX - current_pose.position.x;
@@ -179,23 +180,17 @@ void adjust_Yaw_and_velocity_TowardsGoal() {
     if(fabs(robot_x_error) < tolerance && fabs(robot_y_error) < tolerance && std::abs(yawtogo) < ang_tolerance) {
        
         
-        high_cmd_ros.mode = 0; // 空闲，默认站立
+        
+        std::cout << "robot stop" << std::endl;
+        high_cmd_ros.mode = 0; // 
         high_cmd_ros.velocity[0] = 0.0;
         high_cmd_ros.velocity[1] = 0.0;
-        
-        counter2 = 0;
+        stop_flag = true;
         done_flag = true;
+
+        counter2=0;
+        counter3++;
         
-        if(!stop_flag && counter3 < 2000) {
-            std::cout << "robot stop" << std::endl;
-            high_cmd_ros.mode = 0; // 空闲，默认
-            high_cmd_ros.velocity[0] = 0.0;
-            high_cmd_ros.velocity[1] = 0.0;
-            if(counter3>=2000) {
-                stop_flag = true;
-            }
-            counter3++;
-        }
         
     } else {
         
@@ -306,49 +301,52 @@ int main(int argc, char **argv)
             high_cmd_ros.velocity[1] = 0.0;
         }
 
-        if(done_flag && counter2 == 0) {
+        if(done_flag && stop_flag && counter2 == 0) {
+  
+            if(counter<2000) {
+                //2000 is because we neet to wait ped to go down
+                std_msgs::String msg;
+                msg.data = "Hello, arm, we reach the desired point!";
 
-            std_msgs::String msg;
-            msg.data = "Hello, arm, we reach the desired point!";
-
-            // ROS_INFO("%s", msg.data.c_str());
-            pub_back_to_arm.publish(msg);
+                // ROS_INFO("%s", msg.data.c_str());
+                pub_back_to_arm.publish(msg);
+            }
 
             counter++;
-            if(counter>500) {
+            if(counter>=2000) {
                 done_flag = false;
                 counter = 0;
                 counter3 = 0;
             }
         }
 
-        if (call_stand_up && counter2<1000) {
+        if (call_stand_up && counter2<1000 && !done_flag) {
             high_cmd_ros.mode = 6;
             high_cmd_ros.velocity[0] = 0.0;
             high_cmd_ros.velocity[1] = 0.0;
             counter2++;
         }
-        if (counter2>=1000 && counter2<1500) {
+        if (counter2>=1000 && counter2<1500 && !done_flag) {
             high_cmd_ros.mode = 0; // 空闲，默认站立
             high_cmd_ros.velocity[0] = 0.0;
             high_cmd_ros.velocity[1] = 0.0;
             counter2++;
         }
-        if (counter2>=1500 && counter2<2000) {
+        if (counter2>=1500 && counter2<2000 && !done_flag) {
             high_cmd_ros.mode = 2; // 空闲，默认站立
             high_cmd_ros.gaitType = 1; // 自定义步态
             high_cmd_ros.velocity[0] = 0.0;
             high_cmd_ros.velocity[1] = 0.0;
             counter2++;
         }
-        if (counter2>=2000)
-        {
+        if (counter2>=2000 && !done_flag)
+        {   
+            call_stand_up=false;
             if (!stop_flag) {
             std::cout << "in the velocity and the yaw loop" << std::endl;  
             adjust_Yaw_and_velocity_TowardsGoal();
             }
             
-            call_stand_up=false;
         }
         
         
