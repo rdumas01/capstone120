@@ -8,7 +8,7 @@ from geometry_msgs.msg import Pose, Transform
 
 
 
-def get_target_pose(color : str, shape : str = None):
+def get_target_pose(color : str, shape : str):
     '''
     Gets the Pose in the world frame of the bloc of the desired color.
     ----------
@@ -35,8 +35,7 @@ def get_target_pose(color : str, shape : str = None):
 
     selected_frames = [frame for frame in frames_list if str(color) in frame]   # Get frames containing desired color
 
-    if shape is not None and False:
-        selected_frames = [frame for frame in selected_frames if shape in frame]    # Get frames containing desired shape
+    selected_frames = [frame for frame in selected_frames if shape in frame]    # Get frames containing desired shape
 
     # ==============================================
 

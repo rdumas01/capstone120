@@ -240,7 +240,7 @@ def determine_shape(width, height, depth):
             'cube': [.029, .029, .029],
             'rect': [.059, .029, .014],
             'long': [.089, .029, .014],
-            'thick': [.059, .029, .029]
+            'rect': [.059, .029, .029]
         }
         tolerance = .004
 
@@ -255,7 +255,7 @@ def determine_shape(width, height, depth):
         
         return "Unknown"
 
-def build_castle(found_objects, pixel_to_m, y_offset, x_offset=0.155,z_offset=0, z_tolerance=0.005, depth=.029):
+def build_castle(found_objects, pixel_to_m, y_offset, x_offset=0.12,z_offset=0, z_tolerance=0.005, depth=.029):
     """
     Simulates the building process of a castle based on the detected objects, grouping blocks into layers.
     Additionally, calculates the shape of each block based on its dimensions.
@@ -580,7 +580,7 @@ if __name__ == '__main__':
 
     #Block Detection- provide image(s) on after another
     # Define the relative path to the blueprint image
-    blueprint_filename = "blueprint_cube_only.png"
+    blueprint_filename = "blueprint_rectangle.png"
     # Get the directory where the script is located
     script_dir = os.path.dirname(__file__)
     # Construct the full path to the blueprint image
@@ -593,11 +593,11 @@ if __name__ == '__main__':
     #found_object_results3 = find_object('/home/mahirdaihan3534/capstone120/src/moving/src/Blueprint_zero border.png')
 
     #Srting the blocks based on x and z coordinates- also adding y-coordinate
-    sequential_blocks = build_castle(found_object_results,pixel_to_m=.029/182, y_offset=0.155)
+    sequential_blocks = build_castle(found_object_results,pixel_to_m=.029/144, y_offset=0.155)
     #sequential_blocks2 = build_castle(found_object_results2,pixel_to_m=.029/175, y_offset=0.080)
     #sequential_blocks3 = build_castle(found_object_results3,pixel_to_m=.029/182, y_offset=0.005)
 
-    #print(sequential_blocks2)
+    print(sequential_blocks)
     
     #You can perform stability analysis any two sequential layers (e.g. Layer 2 on Layer 1, Layer 3 on Layer 2, Layer 4 on Layer 3 etc.)
     #layer_2_blocks = sequential_blocks['Layer 2']
