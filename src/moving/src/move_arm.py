@@ -37,11 +37,11 @@ class move_arm_node:
         }
         #######################################
         #for quadruped
-        self.pickup_pointx = 2.022 
-        self.pickup_pointy = 1.738 
+        self.pickup_pointx = 2.17 
+        self.pickup_pointy = 1.3
         self.pickup_yaw = -90*3.1415926535/180
-        self.drop_pointx = 3.952
-        self.drop_pointy = 2.566
+        self.drop_pointx = 3.65
+        self.drop_pointy = 2.13
         self.drop_yaw = 0
         self.reach_drop_point = False
         self.reach_pickup_point = False
@@ -302,13 +302,13 @@ class move_arm_node:
                 self.reach_drop_point = False
                 self.quadruped_finished = False              
                 self.notify_quadruped_go_to_place_point() #if done then it would go down, otherwise keep staying in the function                 
-                rospy.sleep(2)
+                rospy.sleep(4)
                 self.drop_goal(pose)
                 rospy.sleep(6) #set up enough time for robot arm to drop
                 self.reach_pickup_point = False #turn false to go back to the pickup point
                 self.quadruped_finished = False
                 self.notify_quadruped_go_to_pickup_point() #it would not go down to the next loop until it go back
-                
+                rospy.sleep(4)
             # if(self.collision_check == 0):
             #     self.add_box(step, 'box')
             #     rospy.sleep(1)

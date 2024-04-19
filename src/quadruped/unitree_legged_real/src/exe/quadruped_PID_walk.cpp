@@ -32,7 +32,7 @@ const double yKd = 0.12;
 const double aKp = 1;
 const double aKi = 0.05;
 const double aKd = 0.0001;
-const double threshold_vel = 0.6;
+const double threshold_vel = 0.2;
 const double threshold_ang_val = 0.5;
 double integral_x = 0.0; // X方向的积分项
 double integral_y = 0.0; // Y方向的积分项
@@ -109,7 +109,7 @@ double getYawFromQuaternion(const geometry_msgs::Quaternion& quat) {
 // }
 
 void adjust_Yaw_and_velocity_TowardsGoal() {
-    const double ang_tolerance = M_PI*5/1000; // Goal tolerance
+    const double ang_tolerance = .017; // Goal tolerance = 1 degree*+
     const double targetyaw = receive_goal_pt_yaw; // 示例目标偏航角
     double currentyaw = getYawFromQuaternion(current_pose.orientation);
     if(std::isnan(currentyaw)) {
@@ -123,8 +123,8 @@ void adjust_Yaw_and_velocity_TowardsGoal() {
     // std::cout << "MPI" << M_PI << std::endl;
     // std::cout << "currentyaw - MPI = " << currentyaw - M_PI<<std::endl;
     // // wrapTiPi make sure it is inside the range [-π, π]
-    // currentyaw += (M_PI - M_PI*9/180); 
-    currentyaw += M_PI; 
+    currentyaw += (M_PI);
+    // currentyaw += M_PI; 
     double yawtogo = wrapToPi(targetyaw - currentyaw);
     std::cout<< "yaw to go = " << yawtogo <<std::endl;
     
@@ -133,7 +133,7 @@ void adjust_Yaw_and_velocity_TowardsGoal() {
 
     const double goalPositionX = receive_goal_pt_x; // target x
     const double goalPositionY = receive_goal_pt_y; // target y
-    const double tolerance = 0.05; // tolerance for position
+    const double tolerance = 0.04; // tolerance for position
 
     // calculate error (absolute frame)
     double error_x = goalPositionX - current_pose.position.x;
@@ -303,7 +303,7 @@ int main(int argc, char **argv)
 
         if(done_flag && stop_flag && counter2 == 0) {
   
-            if(counter<2000) {
+            if(counter<3000) {
                 //2000 is because we neet to wait ped to go down
                 std_msgs::String msg;
                 msg.data = "Hello, arm, we reach the desired point!";
@@ -313,7 +313,7 @@ int main(int argc, char **argv)
             }
 
             counter++;
-            if(counter>=2000) {
+            if(counter>=3000) {
                 done_flag = false;
                 counter = 0;
                 counter3 = 0;
