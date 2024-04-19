@@ -96,7 +96,7 @@ def find_object(image, display=False, publish=False, print_res=False):
             if cv2.contourArea(cntr) >= min_area:
                 found_object = dict()
 
-                epsilon = .1 * cv2.arcLength(cntr, True) #play around with this value- .018 on the blueprint side
+                epsilon = .02 * cv2.arcLength(cntr, True) #play around with this value- .018 on the blueprint side
                 approx = cv2.approxPolyDP(cntr, epsilon, True) #approx is a list of vertices of detected object
 
                 if len(approx)== 3: #3 vertices = triangle
@@ -149,7 +149,7 @@ def find_object(image, display=False, publish=False, print_res=False):
                     cv2.putText(result, angle_text, (int(xc), int(yc)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 1, cv2.LINE_AA)
 
                     #Display Contours
-                    cv2.drawContours(result, [box], 0, color, 2)
+                    cv2.drawContours(result, [box], 0, colour, 2)
 
                     # Display block shape
                     cv2.putText(result, bloc_shape, box[1], cv2.FONT_HERSHEY_SIMPLEX, 0.8, colour, 1, cv2.LINE_AA)
