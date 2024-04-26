@@ -8,12 +8,12 @@ from geometry_msgs.msg import Pose, Transform
 
 
 
-def get_target_pose(color : str, shape : str):
+def get_target_pose(color : str, shape : str = None):
     '''
     Gets the Pose in the world frame of the bloc of the desired color.
     ----------
     Inputs:
-        - color: string ['green', 'blue', 'ref', 'yellow']
+        - color: string ['green', 'blue', 'red', 'yellow']
         - shape: string (not implemented yet)
     ----------
     Output:
@@ -34,8 +34,10 @@ def get_target_pose(color : str, shape : str):
     # ============== FRAME SELECTION ===============
 
     selected_frames = [frame for frame in frames_list if str(color) in frame]   # Get frames containing desired color
+    rospy.loginfo("Selected frames are: {}".format(selected_frames))
 
-    selected_frames = [frame for frame in selected_frames if shape in frame]    # Get frames containing desired shape
+    if shape is not None:
+        selected_frames = [frame for frame in selected_frames if shape in frame]    # Get frames containing desired shape
 
     # ==============================================
 

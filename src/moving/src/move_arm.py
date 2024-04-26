@@ -27,7 +27,7 @@ class move_arm_node:
         self.box_num  = 0
         self.collision_check = 0
         self.desk_height = 0.01 # 0.085
-        self.pickup_offset = 0.04
+        self.pickup_offset = 0.05
         self.cube_height = 0.029
 
         # define a dictionary to store box shapes dimensions
@@ -123,11 +123,16 @@ class move_arm_node:
         blueprint_path = os.path.join(script_dir, blueprint_filename)
 
         # Use the constructed path in the find_object function
+        #found_object_results = find_object(blueprint_path)
         found_object_results = find_object(blueprint_path)
+        #found_object_results2 = find_object(blueprint_path)
         #found_object_results = find_object('/home/mahirdaihan3534/capstone120/src/moving/src/Blueprint_zero border.png')
-        sequential_blocks = build_castle(found_object_results,pixel_to_m=.029/144, y_offset=0.120)
+        sequential_blocks = build_castle(found_object_results,pixel_to_m=.029/143, y_offset=0.130)
+        #sequential_blocks2 = build_castle(found_object_results2,pixel_to_m=.029/148, y_offset=0.165)
+        
         flattened_blocks = flatten_layers(sequential_blocks)
-        final_list=flattened_blocks
+        #flattened_blocks2 = flatten_layers(sequential_blocks2)
+        final_list=flattened_blocks #+ flattened_blocks2
 
         #pose_list,shape_list,color_list
         poses_colors_shape = create_poses_colors_shape_list(final_list)
@@ -249,7 +254,7 @@ class move_arm_node:
             if target_pose !=None:
                 self.drop_goal(pose)
             # if(self.collision_check == 0):
-            #     self.add_box(step, 'box')
+            #    self.add_box(step, 'box')
             #     rospy.sleep(1)
 
 
@@ -301,28 +306,20 @@ class move_arm_node:
         i = 0
 
         while not found:
-            if shape == 'cube':
-                if(i == 4):
-                    self.rotate_joint("joint2",1.57/7)
-                    self.arm.go()
-                    rospy.sleep(.1)
-                    self.rotate_joint("joint3",-1.57/7)
-                    self.arm.go()
+
+            if(i == 4):
+                self.rotate_joint("joint2",1.57/7)
+                self.arm.go()
+                rospy.sleep(.1)
+                self.rotate_joint("joint3",-1.57/7)
+                self.arm.go()
                 
-                if(i%8 == 0 and i!=0):
-                    self.base_position()
-                    
+            if(i%8 == 0 and i!=0):
+                self.base_position()
                 #search near area until it found one (rotate joint1)
                 #self.rotate_joint("joint1",angle[i]*np.pi/8)
-                self.rotate_joint("joint1", angle[i%8]*0.4884)
-                self.arm.go()
-            
-            if shape == 'rect':
-                self.rotate_joint("joint1", 0.4884)
-                self.arm.go()
-
-                rospy.sleep(5)
-                self.base_position()
+            self.rotate_joint("joint1", angle[i%8]*0.4884)
+            self.arm.go()
 
             
             rospy.sleep(.1)  
@@ -701,7 +698,7 @@ class move_arm_node:
                     #target_pose_stamped.header.stamp = rospy.Time.now()
                     #target_pose_stamped.pose = target_pose
                     
-                    target_pose_copy.position.z += self.desk_height
+                    target_pose_copy.position.z += self.desk_height +0.05
                     #self.arm.set_pose_target(target_pose_stamped)
                     target_pose_copy.position.z += self.pickup_offset/2
                     target_pose_copy.orientation.w = 0.707
@@ -734,7 +731,7 @@ class move_arm_node:
             self.arm.execute(found_plan) 
 
             try:
-                target_pose_copy.position.z -= self.pickup_offset/2
+                target_pose_copy.position.z -= (self.pickup_offset/2 + 0.05)
                 self.arm.set_joint_value_target(target_pose_copy, True)
                 self.arm.go()
                 # if not self.arm.go():
@@ -745,7 +742,8 @@ class move_arm_node:
                 rospy.sleep(.1)
                 self.gripper.set_named_target('open')
                 self.gripper.go()
-                rospy.sleep(2)
+                rospy.sleep(4)
+                #self.add_box(target_pose_copy, 'box')
                 #self.rotate_joint("joint3",np.pi/4)
                 self.arm.go()
                 #rospy.sleep(2)

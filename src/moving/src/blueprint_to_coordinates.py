@@ -255,7 +255,7 @@ def determine_shape(width, height, depth):
         
         return "Unknown"
 
-def build_castle(found_objects, pixel_to_m, y_offset, x_offset=0.12,z_offset=0, z_tolerance=0.005, depth=.029):
+def build_castle(found_objects, pixel_to_m, y_offset, x_offset=0.13,z_offset=0, z_tolerance=0.005, depth=.029):
     """
     Simulates the building process of a castle based on the detected objects, grouping blocks into layers.
     Additionally, calculates the shape of each block based on its dimensions.
@@ -522,7 +522,7 @@ def plot_castle_structure(flattened_blocks):
     ax.set_zlabel('Z axis (m)')
 
     ax.set_title('3D Castle Plot')
-    ax.set_xlim(0.150,0.350)
+    ax.set_xlim(0.1,0.3)
     ax.set_ylim(0.0,0.20)
     ax.set_zlim(0.0,0.20)
     plt.show()
@@ -588,13 +588,13 @@ if __name__ == '__main__':
 
     # Use the constructed path in the find_object function
     found_object_results = find_object(blueprint_path)
-    #found_object_results = find_object("./blueprint_cube_only.png")
+    #found_object_results2 = find_object(blueprint_path)
     #found_object_results2 = find_object('/home/mahirdaihan3534/capstone120/src/moving/src/Blueprint_All Blocks.png')
     #found_object_results3 = find_object('/home/mahirdaihan3534/capstone120/src/moving/src/Blueprint_zero border.png')
 
     #Srting the blocks based on x and z coordinates- also adding y-coordinate
-    sequential_blocks = build_castle(found_object_results,pixel_to_m=.029/144, y_offset=0.155)
-    #sequential_blocks2 = build_castle(found_object_results2,pixel_to_m=.029/175, y_offset=0.080)
+    sequential_blocks = build_castle(found_object_results,pixel_to_m=.029/143, y_offset=0.1)
+    #sequential_blocks2 = build_castle(found_object_results2,pixel_to_m=.029/148, y_offset=0.15)
     #sequential_blocks3 = build_castle(found_object_results3,pixel_to_m=.029/182, y_offset=0.005)
 
     print(sequential_blocks)
@@ -618,7 +618,7 @@ if __name__ == '__main__':
 
     #Final List
     #final_list=flattened_blocks + flattened_blocks2 + flattened_blocks3
-    final_list=flattened_blocks
+    final_list=flattened_blocks #+ flattened_blocks2
 
     #print(final_list)
 
