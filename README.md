@@ -1,6 +1,7 @@
 # Capstone 120 - User Guide
 
 This is the Github repository of Capstone Team 120. You will find all necessary instructions in the README.
+Our capstone project overview and report are in https://drive.google.com/file/d/1ibmi30IYsyvGK4Bln-9D3RJiigJwa085/view?usp=sharing
 
 
 ## Starting the Robot
